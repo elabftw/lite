@@ -19,6 +19,8 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
+	"os"
 	"strings"
 	"time"
 )
@@ -99,12 +101,22 @@ func (a *App) loadElabftwClientConfig(profileUUID string, instanceID int64) (*el
 	return &cfg, nil
 }
 
+func proxySettings(*http.Request) (*url.URL, error) {
+	proxy_address := os.Getenv("http_proxy")
+	if proxy_address != "" {
+		return url.Parse(proxy_address)
+	} else {
+		return nil, nil
+	}
+}
+
 func elabftwHTTPClient(verifyTLS bool, longTimeout bool) *http.Client {
 	transport := &http.Transport{
 		TLSClientConfig: &tls.Config{
 			// Only false when the user explicitly disables TLS verification.
 			InsecureSkipVerify: !verifyTLS,
 		},
+		Proxy: proxySettings,
 	}
 
 	// regular API requests should fail quickly if the server is unreachable
