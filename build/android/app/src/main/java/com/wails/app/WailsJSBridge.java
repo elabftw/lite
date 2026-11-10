@@ -22,6 +22,11 @@ public class WailsJSBridge {
 
     private final WailsBridge bridge;
     private final WebView webView;
+    private volatile boolean allowed;
+
+    public void setAllowed(boolean allowed) {
+        this.allowed = allowed;
+    }
 
     public WailsJSBridge(WailsBridge bridge, WebView webView) {
         this.bridge = bridge;
@@ -37,6 +42,7 @@ public class WailsJSBridge {
      */
     @JavascriptInterface
     public String invoke(String message) {
+        if (!allowed) return "{\"error\":\"Untrusted WebView origin\"}";
         if (DEBUG) Log.d(TAG, "Invoke called: " + message);
         return bridge.handleMessage(message);
     }
@@ -51,10 +57,12 @@ public class WailsJSBridge {
      */
     @JavascriptInterface
     public void invokeAsync(final String callbackId, final String payload) {
+        if (!allowed) return;
         if (DEBUG) Log.d(TAG, "InvokeAsync called: " + payload);
 
         // Handle off the JS thread so we don't block the WebView.
         executor.execute(() -> {
+            if (!allowed) return;
             try {
                 String response = bridge.handleRuntimeCall(payload);
                 sendCallback(callbackId, response, null);
@@ -74,6 +82,7 @@ public class WailsJSBridge {
      */
     @JavascriptInterface
     public void log(String level, String message) {
+        if (!allowed) return;
         switch (level.toLowerCase()) {
             case "debug":
                 Log.d(TAG + "/JS", message);
@@ -134,7 +143,9 @@ public class WailsJSBridge {
             );
         }
 
-        webView.post(() -> webView.evaluateJavascript(js, null));
+        webView.post(() -> {
+            if (allowed) webView.evaluateJavascript(js, null);
+        });
     }
 
     private String escapeJsString(String str) {

@@ -123,6 +123,7 @@ tasks:
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app"
       - cp "{{.BIN_DIR}}/{{.APP_NAME | lower}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/"
       - cp build/ios/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/"
+      - xcrun ibtool --compile "{{.BIN_DIR}}/{{.APP_NAME}}.app/LaunchScreen.storyboardc" build/ios/LaunchScreen.storyboard
       - |
         # Embed the provisioning profile for device builds when provided
         if [ "{{.IOS_PLATFORM}}" = "device" ] && [ -n "{{.PROVISIONING_PROFILE}}" ]; then
@@ -295,6 +296,7 @@ tasks:
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - cp "{{.BIN_DIR}}/{{.APP_NAME | lower}}" "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/{{.APP_NAME | lower}}"
       - cp build/ios/Info.dev.plist "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Info.plist"
+      - xcrun ibtool --compile "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/LaunchScreen.storyboardc" build/ios/LaunchScreen.storyboard
       - |
         # Compile asset catalog and embed icons for dev bundle
         APP_BUNDLE="{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"

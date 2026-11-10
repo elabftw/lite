@@ -67,14 +67,13 @@ func main() {
 				}
 				path := strings.TrimSpace(string(out))
 
-				// Check if path exists and is in Xcode.app
+				// Accept any Xcode .app bundle, including beta and renamed installs,
+				// but reject the standalone Command Line Tools directory.
 				if _, err := os.Stat(path); err != nil {
 					return false, "Invalid Xcode path"
 				}
-
-				// Verify it's pointing to Xcode.app (not just Command Line Tools)
-				if !strings.Contains(path, "Xcode.app") {
-					return false, fmt.Sprintf("Points to %s (should be Xcode.app)", path)
+				if !strings.HasSuffix(path, ".app/Contents/Developer") {
+					return false, fmt.Sprintf("Points to %s (expected an Xcode .app/Contents/Developer path)", path)
 				}
 
 				return true, path

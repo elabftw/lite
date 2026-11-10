@@ -22,6 +22,7 @@ import android.provider.MediaStore;
 import android.provider.OpenableColumns;
 import android.util.Base64;
 import android.util.Log;
+import android.view.View;
 import android.webkit.ConsoleMessage;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -35,6 +36,9 @@ import android.webkit.WebViewClient;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.FileProvider;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.webkit.WebViewAssetLoader;
 
 import org.json.JSONObject;
@@ -62,6 +66,7 @@ public class MainActivity extends AppCompatActivity {
     private WebView webView;
     private Uri devServer;
     private WailsBridge bridge;
+    private WailsJSBridge jsBridge;
     // Battery: system-event receivers are registered only while the activity is
     // in the foreground (onStart) and torn down in onStop, so background battery/
     // network/screen broadcasts don't wake the app.
@@ -95,6 +100,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        // Android 15+ draws edge-to-edge when targeting API 35+.
+        // Apply only system-bar/cutout insets here; keep IME insets for the WebView.
+        if (Build.VERSION.SDK_INT >= 35) {
+            View container = findViewById(R.id.main_container);
+            ViewCompat.setOnApplyWindowInsetsListener(container, (view, insets) -> {
+                int types = WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout();
+                Insets bars = insets.getInsets(types);
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return new WindowInsetsCompat.Builder(insets)
+                        .setInsets(types, Insets.NONE)
+                        .build();
+            });
+            ViewCompat.requestApplyInsets(container);
+        }
+
         String devURL = WailsBridge.devServerURL(this);
         if (devURL != null) devServer = Uri.parse(devURL);
 
@@ -107,6 +127,31 @@ public class MainActivity extends AppCompatActivity {
 
         // Load the application
         loadApplication();
+    }
+
+    // Allow only app assets and the explicitly configured debug Vite server to
+    // run inside the WebView that exposes the Wails native interface.
+    private boolean isTrustedOrigin(Uri url) {
+        if (url == null) return false;
+        if (WAILS_SCHEME.equalsIgnoreCase(url.getScheme()) &&
+                WAILS_HOST.equalsIgnoreCase(url.getHost()) && url.getPort() == -1) {
+            return true;
+        }
+        return devServer != null &&
+                devServer.getScheme().equalsIgnoreCase(url.getScheme()) &&
+                devServer.getHost().equalsIgnoreCase(url.getHost()) &&
+                devServer.getPort() == url.getPort();
+    }
+
+    private void openExternal(Uri url) {
+        String scheme = url.getScheme();
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme) &&
+                !"mailto".equalsIgnoreCase(scheme) && !"tel".equalsIgnoreCase(scheme)) return;
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, url));
+        } catch (android.content.ActivityNotFoundException e) {
+            Log.w(TAG, "No handler for external URL", e);
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -137,14 +182,41 @@ public class MainActivity extends AppCompatActivity {
 
         // Set up WebView client to intercept requests
         webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                if (isTrustedOrigin(request.getUrl()) ||
+                        "about".equalsIgnoreCase(request.getUrl().getScheme())) return false;
+                if (request.isForMainFrame()) openExternal(request.getUrl());
+                // Do not load external documents or iframes in a bridged WebView.
+                return true;
+            }
+
+            @Override
+            public void onPageStarted(WebView view, String url, Bitmap favicon) {
+                boolean trusted = isTrustedOrigin(Uri.parse(url));
+                jsBridge.setAllowed(trusted);
+                if (!trusted) {
+                    // shouldOverrideUrlLoading is not invoked for POST navigations.
+                    view.stopLoading();
+                    return;
+                }
+                super.onPageStarted(view, url, favicon);
+            }
+
             @Nullable
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
-                // Handle wails.localhost requests
-                if (request.getUrl().getHost() != null &&
-                        (request.getUrl().getHost().equals(WAILS_HOST) ||
-                         (devServer != null && request.getUrl().getScheme().equals(devServer.getScheme()) &&
-                          request.getUrl().getAuthority().equals(devServer.getAuthority())))) {
+                if (!isTrustedOrigin(request.getUrl())) {
+                    // Block remote scripts, HTML frames and redirects as well as
+                    // navigations. Untrusted content must never use this bridge.
+                    String scheme = request.getUrl().getScheme();
+                    if ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme)) {
+                        return new WebResourceResponse("text/plain", "UTF-8",
+                                new java.io.ByteArrayInputStream(new byte[0]));
+                    }
+                    return super.shouldInterceptRequest(view, request);
+                }
+                if (isTrustedOrigin(request.getUrl())) {
 
                     // For wails API calls (runtime, capabilities, etc.) pass the
                     // full URL including the query string, because
@@ -221,6 +293,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageFinished(WebView view, String url) {
                 super.onPageFinished(view, url);
+                if (!isTrustedOrigin(Uri.parse(url))) return;
                 if (DEBUG) Log.d(TAG, "Page loaded: " + url);
                 bridge.onPageFinished(url);
                 // Now that JS listeners are mounted, push a snapshot of the
@@ -229,8 +302,10 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Add JavaScript interface for Go communication
-        webView.addJavascriptInterface(new WailsJSBridge(bridge, webView), "wails");
+        // Add JavaScript interface for Go communication. Disabled until the
+        // trusted main-frame origin begins loading.
+        jsBridge = new WailsJSBridge(bridge, webView);
+        webView.addJavascriptInterface(jsBridge, "wails");
 
         // A WebChromeClient is required for HTML <input type="file"> elements to
         // work; without onShowFileChooser the WebView silently ignores clicks on
