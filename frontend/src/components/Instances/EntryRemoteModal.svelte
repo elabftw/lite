@@ -7,7 +7,7 @@ This file is part of eLabFTW Desktop.
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 <script lang='ts'>
-  import type { main } from '../../../wailsjs/go/models';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import Modal from '../Modal.svelte';
 
   type Props = {

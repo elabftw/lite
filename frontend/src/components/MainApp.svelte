@@ -24,8 +24,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     PushAllEntriesToElabftw,
     ListEntryRemoteLinks,
     UnlinkEntryFromElabftw,
-  } from '../../wailsjs/go/main/App';
-  import type { main } from '../../wailsjs/go/models';
+  } from '../../bindings/elabftw-lite/app';
+  import type * as main from '../../bindings/elabftw-lite/models';
   import { autofocus, errorMessage, openExternalURL, preventDefaultSubmit, toRelativeTime } from '../utils/helpers';
   import ProfileSettings from './ProfileSelector/ProfileSettings.svelte';
   import InstancesPushModal from './Instances/InstancesPushModal.svelte';

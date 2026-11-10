@@ -8,8 +8,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 <script lang='ts'>
   import { onMount } from 'svelte';
-  import { ListElabftwInstances, ListRemoteEntries } from '../../../wailsjs/go/main/App';
-  import type { main } from '../../../wailsjs/go/models';
+  import { ListElabftwInstances, ListRemoteEntries } from '../../../bindings/elabftw-lite/app';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import { errorMessage, preventDefaultSubmit } from '../../utils/helpers';
   import Modal from '../Modal.svelte';
 

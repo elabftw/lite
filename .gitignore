@@ -1,5 +1,17 @@
+bin
 build/bin
+.task
+.wails
 node_modules
 frontend/dist
 frontend/package.json.md5
 /package-lock.json
+# generated mobile build artefacts
+build/ios/xcode
+build/android/overlay.json
+build/android/gen
+build/android/.gradle
+build/android/app/build
+build/android/app/src/main/jniLibs
+build/android/local.properties
+build/linux/elabftw-lite.desktop

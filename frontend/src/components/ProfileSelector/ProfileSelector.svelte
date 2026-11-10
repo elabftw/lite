@@ -15,8 +15,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     AddProfile,
     UnlockProfile,
     DeleteProfile
-  } from '../../../wailsjs/go/main/App';
-  import type { main } from '../../../wailsjs/go/models';
+  } from '../../../bindings/elabftw-lite/app';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import { showAlert } from "../stores/alert.svelte";
 
   import ProfileSelectorList from './ProfileSelectorList.svelte';

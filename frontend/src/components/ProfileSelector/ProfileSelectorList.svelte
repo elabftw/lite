@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import type { main } from '../../../wailsjs/go/models';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import ProfileSelectorUnlockForm from './ProfileSelectorUnlockForm.svelte';
 
   type Props = {

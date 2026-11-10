@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import { SetPreferredEditor } from '../../../wailsjs/go/main/App';
+  import { SetPreferredEditor } from '../../../bindings/elabftw-lite/app';
   import { errorMessage, preventDefaultSubmit } from '../../utils/helpers';
   import { showAlert } from '../stores/alert.svelte';
   import InstancesView from '../Instances/InstancesView.svelte';

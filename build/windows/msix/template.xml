@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<MsixPackagingToolTemplate
+    xmlns="http://schemas.microsoft.com/msix/packaging/msixpackagingtool/template/2022">
+    <Settings
+        AllowTelemetry="false"
+        ApplyACLsToPackageFiles="true"
+        GenerateCommandLineFile="true"
+        AllowPromptForPassword="false">
+    </Settings>
+    <Installer
+        Path="elabftw-lite"
+        Arguments=""
+        InstallLocation="C:\Program Files\Deltablot\eLabFTW lite">
+    </Installer>
+    <PackageInformation
+        PackageName="eLabFTW lite"
+        PackageDisplayName="eLabFTW lite"
+        PublisherName="CN=Deltablot"
+        PublisherDisplayName="Deltablot"
+        Version="0.1.0.0"
+        PackageDescription="Local-first eLabFTW lite client">
+        <Capabilities>
+            <Capability Name="runFullTrust" />
+            
+        </Capabilities>
+        <Applications>
+            <Application
+                Id="net.elabftw.lite"
+                Description="Local-first eLabFTW lite client"
+                DisplayName="eLabFTW lite"
+                ExecutableName="elabftw-lite"
+                EntryPoint="Windows.FullTrustApplication">
+                
+            </Application>
+        </Applications>
+        <Resources>
+            <Resource Language="en-us" />
+        </Resources>
+        <Dependencies>
+            <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.19041.0" />
+        </Dependencies>
+        <Properties>
+            <Framework>false</Framework>
+            <DisplayName>eLabFTW lite</DisplayName>
+            <PublisherDisplayName>Deltablot</PublisherDisplayName>
+            <Description>Local-first eLabFTW lite client</Description>
+            <Logo>Assets\AppIcon.png</Logo>
+        </Properties>
+    </PackageInformation>
+    <SaveLocation PackagePath="elabftw-lite.msix" />
+    <PackageIntegrity>
+        <CertificatePath></CertificatePath>
+    </PackageIntegrity>
+</MsixPackagingToolTemplate>

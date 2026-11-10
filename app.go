@@ -18,10 +18,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type App struct {
-	ctx   context.Context
 	index *ProfileIndex
 
 	activeProfileUUID string
@@ -36,16 +36,15 @@ func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+// ServiceStartup is called by Wails when the application starts.
+func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	idx, err := loadProfileIndex()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	a.index = idx
+	return nil
 }
 
 // requireUnlockedProfile gates authentified actions.
