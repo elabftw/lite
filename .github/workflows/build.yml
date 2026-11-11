@@ -100,6 +100,15 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            pkg-config \
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
+
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 
