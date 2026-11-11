@@ -78,6 +78,17 @@
   display: none;
 }
 
+/* Allow settings panels and forms to shrink to the viewport. */
+.profile-settings,
+.profile-settings form.grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.profile-settings .panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 @media (width <= 720px) {
   .app-header {
     align-items: stretch;
@@ -91,7 +102,12 @@
   }
 
   .profile-actions .profile-pill {
+    gap: 0.4rem;
     min-width: 0;
+  }
+
+  .profile-actions > button:first-of-type {
+    margin-left: auto;
   }
 
   .profile-actions .profile-avatar {
@@ -143,5 +159,9 @@
 
   .mobile-import-icon {
     display: block;
+  }
+
+  .profile-settings .panel .justify-between {
+    flex-wrap: wrap;
   }
 }
