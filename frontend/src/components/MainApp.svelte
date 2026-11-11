@@ -444,10 +444,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
       {:else}
         <div class='grid gap-1'>
           {#each entries as e (e.id)}
-            <div class='flex gap-1'>
+            <div class='entry-row flex gap-1'>
               <button type='button' class='entry-card' onclick={() => openEntry(e.id)} disabled={!preferencesReady}>
                 <span class='icon-sm' aria-hidden='true'><EntityTypeIcon type={e.remoteType} /></span>
-                <span class='grid gap-03'>
+                <span class='entry-card-details grid gap-03'>
                 <span class='text-ellipsis text-strong text-big'>
                   {e.title || 'Untitled entry'}
                 </span>
@@ -457,11 +457,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <EntityCategoryStatus remoteDetails={e.remoteDetails} />
               </span>
 
-                <span class='text-orange text-strong' aria-hidden='true'>
+                <span class='entry-card-open text-orange text-strong' aria-hidden='true'>
                 Open &#8594;
               </span>
               </button>
-              <button type='button' class='btn btn-danger ' onclick={() => deleteEntry(e.id, e.title)}
+              <button type='button' class='btn btn-danger entry-delete-button' onclick={() => deleteEntry(e.id, e.title)}
                       aria-label={`Delete ${e.title}`}>
                 <span aria-hidden='true'>&#128465;</span>
               </button>
