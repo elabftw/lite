@@ -73,3 +73,75 @@
   padding: 2rem 1rem;
   place-items: center;
 }
+
+.mobile-import-icon {
+  display: none;
+}
+
+@media (width <= 720px) {
+  .app-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .profile-actions {
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .profile-actions .profile-pill {
+    min-width: 0;
+  }
+
+  .profile-actions .profile-avatar {
+    flex-shrink: 0;
+    height: 40px;
+    transform: none;
+    width: 40px;
+  }
+
+  .profile-actions .text-strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .profile-actions > button {
+    flex-shrink: 0;
+  }
+
+  .entries-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .entries-summary {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .entries-summary .icon {
+    flex-shrink: 0;
+    height: 44px;
+    width: 44px;
+  }
+
+  .entries-actions {
+    flex-shrink: 0;
+    gap: 0.5rem;
+  }
+
+  .entry-action-button {
+    min-width: 42px;
+    padding: 0.6rem;
+  }
+
+  .entry-action-label {
+    display: none;
+  }
+
+  .mobile-import-icon {
+    display: block;
+  }
+}
