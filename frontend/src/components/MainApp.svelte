@@ -24,8 +24,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     PushAllEntriesToElabftw,
     ListEntryRemoteLinks,
     UnlinkEntryFromElabftw,
-  } from '../../wailsjs/go/main/App';
-  import type { main } from '../../wailsjs/go/models';
+  } from '../../bindings/elabftw-lite/app';
+  import type * as main from '../../bindings/elabftw-lite/models';
   import { autofocus, errorMessage, openExternalURL, preventDefaultSubmit, toRelativeTime } from '../utils/helpers';
   import ProfileSettings from './ProfileSelector/ProfileSettings.svelte';
   import InstancesPushModal from './Instances/InstancesPushModal.svelte';
@@ -368,7 +368,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 <!-- when using editor, the container becomes larger (side panel with uploads/metadata appears) -->
 <div class='container' class:editor-container={view === 'editor'}>
-  <header class='flex justify-between items-center mb-2' class:border-bottom={view !== 'editor'}>
+  <header class='app-header flex justify-between items-center mb-2' class:border-bottom={view !== 'editor'}>
     <div class='w-100 text-ellipsis'>
       {#if view === 'index'}
         <h1>My Entries</h1>
@@ -389,7 +389,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
       {/if}
     </div>
 
-    <div class='flex gap-1 items-center'>
+    <div class='profile-actions flex gap-1 items-center'>
       <div class='profile-pill flex items-center' title={profileName}>
         <span class='profile-avatar'>{profileName.slice(0, 2).toUpperCase()}</span>
         <span class='text-strong'>{profileName}</span>
@@ -412,8 +412,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   <!-- VIEW MODE -->
   {#if view === 'index'}
     <section class='panel' aria-labelledby='entries-title'>
-      <div class='flex justify-between items-center mb-2 border-bottom'>
-        <div class='flex items-center gap-1'>
+      <div class='entries-toolbar flex justify-between items-center mb-2 border-bottom'>
+        <div class='entries-summary flex items-center gap-1'>
           <div class='icon' aria-hidden='true'>&#x2756;</div>
           <div>
             <h3 id='entries-title'>Saved entries</h3>
@@ -422,11 +422,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </span>
           </div>
         </div>
-        <div class='flex gap-1'>
-          <button class='btn btn-secondary' type='button' onclick={() => { showAlert(null); importModalOpen = true; }}>
-            Import from eLabFTW
+        <div class='entries-actions flex gap-1'>
+          <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
+            <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
+            <span class='entry-action-label'>Import from eLabFTW</span>
           </button>
-          <button class='btn btn-primary' onclick={openEditor} disabled={!preferencesReady}><span aria-hidden='true'>+</span> Create entry</button>
+          <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
         </div>
       </div>
 
@@ -443,10 +444,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
       {:else}
         <div class='grid gap-1'>
           {#each entries as e (e.id)}
-            <div class='flex gap-1'>
+            <div class='entry-row flex gap-1'>
               <button type='button' class='entry-card' onclick={() => openEntry(e.id)} disabled={!preferencesReady}>
                 <span class='icon-sm' aria-hidden='true'><EntityTypeIcon type={e.remoteType} /></span>
-                <span class='grid gap-03'>
+                <span class='entry-card-details grid gap-03'>
                 <span class='text-ellipsis text-strong text-big'>
                   {e.title || 'Untitled entry'}
                 </span>
@@ -456,11 +457,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <EntityCategoryStatus remoteDetails={e.remoteDetails} />
               </span>
 
-                <span class='text-orange text-strong' aria-hidden='true'>
+                <span class='entry-card-open text-orange text-strong' aria-hidden='true'>
                 Open &#8594;
               </span>
               </button>
-              <button type='button' class='btn btn-danger ' onclick={() => deleteEntry(e.id, e.title)}
+              <button type='button' class='btn btn-danger entry-delete-button' onclick={() => deleteEntry(e.id, e.title)}
                       aria-label={`Delete ${e.title}`}>
                 <span aria-hidden='true'>&#128465;</span>
               </button>

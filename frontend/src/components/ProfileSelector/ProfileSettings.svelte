@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import { SetPreferredEditor } from '../../../wailsjs/go/main/App';
+  import { SetPreferredEditor } from '../../../bindings/elabftw-lite/app';
   import { errorMessage, preventDefaultSubmit } from '../../utils/helpers';
   import { showAlert } from '../stores/alert.svelte';
   import InstancesView from '../Instances/InstancesView.svelte';
@@ -40,7 +40,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 </script>
 
-<div class='grid gap-1'>
+<div class='profile-settings grid gap-1'>
 <section class='panel'>
   <div class='border-bottom mb-2'>
     <button type='button' class='btn btn-secondary' onclick={onBack}>← Back</button>

@@ -16,32 +16,20 @@ jobs:
           # Linux
           - name: linux-amd64
             runs_on: ubuntu-24.04
-            platform: linux/amd64
-            wails_tags: webkit2_41
           - name: linux-arm64
             runs_on: ubuntu-24.04-arm
-            platform: linux/arm64
-            wails_tags: webkit2_41
 
           # macOS
           - name: macos-arm64
             runs_on: macos-15
-            platform: darwin/arm64
-            wails_tags: ""
           - name: macos-amd64
             runs_on: macos-15-intel
-            platform: darwin/amd64
-            wails_tags: ""
 
           # Windows
           - name: windows-amd64
             runs_on: windows-latest
-            platform: windows/amd64
-            wails_tags: ""
           - name: windows-arm64
             runs_on: windows-11-arm
-            platform: windows/arm64
-            wails_tags: ""
 
     runs-on: ${{ matrix.runs_on }}
 
@@ -56,7 +44,7 @@ jobs:
         uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
         with:
           go-version-file: go.mod
-          cache: true
+          cache: false
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
@@ -65,22 +53,21 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             pkg-config \
-            libgtk-3-dev \
-            libwebkit2gtk-4.1-dev
+            libgtk-4-dev \
+            libwebkitgtk-6.0-dev
 
       - name: Install Wails CLI
-        # v2.12.0
-        run: |
-          go install github.com/wailsapp/wails/v2/cmd/wails@ebe9d32e170905ff726a3bbb3d0076282e4edc41
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 
       - name: Build (Wails)
         shell: bash
         run: |
           set -euo pipefail
-          if [ -n "${{ matrix.wails_tags }}" ]; then
-            wails build -clean -platform "${{ matrix.platform }}" -tags "${{ matrix.wails_tags }}"
+          # macOS needs the .app bundle, other platforms ship the plain binary
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            wails3 package
           else
-            wails build -clean -platform "${{ matrix.platform }}"
+            wails3 build
           fi
 
       - name: Prepare release asset
@@ -90,13 +77,13 @@ jobs:
           mkdir -p release
           case '${{ runner.os }}' in
             Linux)
-              cp build/bin/elabftw-lite 'release/elabftw-lite-${{ matrix.name }}'
+              cp bin/elabftw-lite 'release/elabftw-lite-${{ matrix.name }}'
               ;;
             Windows)
-              cp build/bin/elabftw-lite.exe 'release/elabftw-lite-${{ matrix.name }}.exe'
+              cp bin/elabftw-lite.exe 'release/elabftw-lite-${{ matrix.name }}.exe'
               ;;
             macOS)
-              ditto -c -k --sequesterRsrc --keepParent build/bin/elabftw-lite.app 'release/elabftw-lite-${{ matrix.name }}.zip'
+              ditto -c -k --sequesterRsrc --keepParent bin/elabftw-lite.app 'release/elabftw-lite-${{ matrix.name }}.zip'
               ;;
           esac
 
@@ -104,7 +91,81 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.name }}
-          path: build/bin/**
+          path: bin/**
+          if-no-files-found: error
+
+      - name: Upload release asset
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          gh release upload "$RELEASE_TAG" release/* --clobber --repo "$REPOSITORY"
+
+  android:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Setup Java
+        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+
+      - name: Configure Android release signing
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Missing Android release signing secret: $variable"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-release.keystore"
+          test -s "$RUNNER_TEMP/android-release.keystore"
+
+      - name: Build (Android)
+        # Uses the NDK preinstalled on the runner (ANDROID_NDK_HOME).
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/android-release.keystore
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: wails3 task android:package
+
+      - name: Prepare release asset
+        run: |
+          mkdir -p release
+          cp bin/elabftw-lite.apk release/elabftw-lite-android-arm64.apk
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android
+          path: bin/elabftw-lite.apk
           if-no-files-found: error
 
       - name: Upload release asset

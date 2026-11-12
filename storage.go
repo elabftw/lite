@@ -16,6 +16,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 const AppName = "elabftw-lite"
@@ -38,8 +40,11 @@ type ProfileEntry struct {
 	EncryptedVerifier string `json:"encrypted_verifier,omitempty"`
 }
 
-// either XDG_DATA_HOME or default to .local/share
+// On mobile, use the app sandbox storage. Otherwise either XDG_DATA_HOME or default to .local/share
 func appRootDir() (string, error) {
+	if base := application.Mobile.StoragePath(); base != "" {
+		return filepath.Join(base, AppName), nil
+	}
 	base := os.Getenv("XDG_DATA_HOME")
 	if base == "" {
 		home, err := os.UserHomeDir()

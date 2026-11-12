@@ -73,3 +73,147 @@
   padding: 2rem 1rem;
   place-items: center;
 }
+
+.mobile-import-icon {
+  display: none;
+}
+
+/* Allow settings panels and forms to shrink to the viewport. */
+.profile-settings,
+.profile-settings form.grid {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.profile-settings .panel {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (width <= 720px) {
+  .app-header {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .profile-actions {
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .profile-actions .profile-pill {
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .profile-actions > button {
+    flex-shrink: 0;
+  }
+
+  .profile-actions > button:first-of-type {
+    margin-left: auto;
+  }
+
+  .profile-actions .profile-avatar {
+    flex-shrink: 0;
+    height: 40px;
+    transform: none;
+    width: 40px;
+  }
+
+  .profile-actions .text-strong {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .entries-toolbar {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .entries-summary {
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .entries-summary .icon {
+    flex-shrink: 0;
+    height: 44px;
+    width: 44px;
+  }
+
+  .entries-actions {
+    flex-shrink: 0;
+    gap: 0.5rem;
+  }
+
+  .entry-action-button {
+    min-width: 42px;
+    padding: 0.6rem;
+  }
+
+  .entry-action-label {
+    display: none;
+  }
+
+  .mobile-import-icon {
+    display: block;
+  }
+
+  .profile-settings .panel .justify-between {
+    flex-wrap: wrap;
+  }
+
+  /* The whole card is tappable, so the extra Open label is redundant on mobile. */
+  .entry-row {
+    align-items: flex-start;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+
+  .entry-row .entry-card {
+    align-items: start;
+    gap: 0.65rem;
+    grid-template-columns: 40px minmax(0, 1fr);
+    min-width: 0;
+    padding: 0.75rem;
+  }
+
+  .entry-row .icon-sm {
+    height: 40px;
+    transform: none;
+    width: 40px;
+  }
+
+  .entry-card-details {
+    min-width: 0;
+  }
+
+  .entry-card-details .text-ellipsis {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .entry-card-details > .flex {
+    flex-wrap: wrap;
+    gap: 0.25rem 0.75rem;
+  }
+
+  .entry-card-open {
+    display: none;
+  }
+
+  .entry-delete-button {
+    align-self: flex-start;
+    flex-shrink: 0;
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.65rem;
+  }
+
+  .app-header h1.text-ellipsis {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+}
