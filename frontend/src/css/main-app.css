@@ -106,6 +106,10 @@
     min-width: 0;
   }
 
+  .profile-actions > button {
+    flex-shrink: 0;
+  }
+
   .profile-actions > button:first-of-type {
     margin-left: auto;
   }
@@ -121,10 +125,6 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-  }
-
-  .profile-actions > button {
-    flex-shrink: 0;
   }
 
   .entries-toolbar {
