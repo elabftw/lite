@@ -492,41 +492,44 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <!-- VIEW EDITOR MODE -->
   {:else if view === 'editor'}
     <div>
-      <div class='panel flex justify-between mb-2'>
-          <button class='btn btn-secondary' type='button' onclick={openIndex}>← Back</button>
-          <div class='flex gap-1'>
+      <div class='panel entry-editor-toolbar flex justify-between mb-2'>
+          <button class='btn btn-secondary' type='button' onclick={openIndex} aria-label='Back' title='Back'><span aria-hidden='true'>←</span><span class='editor-action-label'>Back</span></button>
+          <div class='entry-editor-actions flex gap-1'>
               {#if remoteLinks.length > 0}
-                <div class='flex gap-1'>
+                <div class='entry-editor-remote-actions flex gap-1'>
                   <button
                     type='button'
                     class='btn btn-secondary btn-external-link'
+                    aria-label='Open in eLabFTW'
                     title={remoteLinks.length === 1
                       ? `Open ${remoteLinks[0].type} #${remoteLinks[0].remoteId} on ${remoteLinks[0].siteUrl}`
                       : 'Choose an eLabFTW instance'}
                     onclick={() => openRemoteModal('open')}
                   >
                     <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 3h7v7M10 14 21 3M21 13v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7'/></svg>
-                    Open in eLabFTW
+                    <span class='editor-action-label'>Open in eLabFTW</span>
                   </button>
-                  <button type='button' class='btn btn-secondary' onclick={() => openRemoteModal('pull')}>
+                  <button type='button' class='btn btn-secondary' onclick={() => openRemoteModal('pull')} aria-label='Pull' title='Pull'>
                     <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v370.7L54.6 297.3c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z'/></svg>
-                    Pull
+                    <span class='editor-action-label'>Pull</span>
                   </button>
                   <button type='button' class='btn btn-secondary btn-quiet'
+                          aria-label='Unlink'
                           title='Remove the local sync link without deleting either entry'
                           onclick={() => openRemoteModal('unlink')}>
-                    Unlink
+                    <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m18.84 12.25 1.72-1.71a4 4 0 0 0-5.66-5.66l-1.72 1.71M5.16 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.72-1.71M8 2v4M2 8h4m10 14v-4m6-2h-4'/></svg>
+                    <span class='editor-action-label'>Unlink</span>
                   </button>
                 </div>
               {/if}
             <button class='btn btn-secondary' type='button' disabled={!currentEntryId}
-                    onclick={() => openPushModal('single', currentEntryId)}>
+                    aria-label='Push' title='Push' onclick={() => openPushModal('single', currentEntryId)}>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M214.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 109.3V480c0 17.7 14.3 32 32 32s32-14.3 32-32V109.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z'/></svg>
-              Push
+              <span class='editor-action-label'>Push</span>
             </button>
-            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch}>
+            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch} aria-label='Save' title='Save'>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
-              Save
+              <span class='editor-action-label'>Save</span>
             </button>
           </div>
       </div>

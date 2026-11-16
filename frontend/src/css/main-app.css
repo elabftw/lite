@@ -79,6 +79,21 @@
   display: none;
 }
 
+/* Keep entry actions usable even when the desktop window is narrow. */
+.entry-editor-toolbar,
+.entry-editor-actions,
+.entry-editor-remote-actions {
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.entry-editor-toolbar .btn {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.4rem;
+  justify-content: center;
+}
+
 /* Allow settings panels and forms to shrink to the viewport. */
 .profile-settings,
 .profile-settings form.grid {
@@ -91,6 +106,25 @@
 }
 
 @media (width <= 720px) {
+  .entry-editor-remote-actions {
+    display: contents;
+  }
+
+  .entry-editor-toolbar .editor-action-label {
+    display: none;
+  }
+
+  .entry-editor-toolbar .btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 0.65rem;
+  }
+
+  .entry-editor-actions {
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
   .app-header {
     align-items: stretch;
     flex-direction: column;
