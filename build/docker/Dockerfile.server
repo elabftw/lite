@@ -14,7 +14,7 @@
 # The Taskfile passes these through: task build:docker CGO_ENABLED=1 GO_IMAGE=... RUNTIME_IMAGE=...
 
 ARG GO_IMAGE=golang:alpine
-ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12
+ARG RUNTIME_IMAGE=gcr.io/distroless/static-debian12:nonroot
 ARG CGO_ENABLED=0
 
 # Build stage

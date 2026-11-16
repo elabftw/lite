@@ -194,12 +194,13 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onPageStarted(WebView view, String url, Bitmap favicon) {
                 boolean trusted = isTrustedOrigin(Uri.parse(url));
-                jsBridge.setAllowed(trusted);
                 if (!trusted) {
                     // shouldOverrideUrlLoading is not invoked for POST navigations.
+                    // Keep the bridge enabled for the trusted page still displayed.
                     view.stopLoading();
                     return;
                 }
+                jsBridge.setAllowed(true);
                 super.onPageStarted(view, url, favicon);
             }
 
@@ -626,10 +627,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
             }
-            if (results == null) {
-                // Fallback for pickers that report the result differently.
-                results = FileChooserParams.parseResult(resultCode, data);
-            }
+            // Only pass validated content:// URIs to the WebView.
             webViewFileChooserCallback.onReceiveValue(results);
             webViewFileChooserCallback = null;
             return;
@@ -647,9 +645,10 @@ public class MainActivity extends AppCompatActivity {
         if (resultCode == RESULT_OK && data != null) {
             if (data.getClipData() != null) {
                 for (int i = 0; i < data.getClipData().getItemCount(); i++) {
-                    uris.add(data.getClipData().getItemAt(i).getUri());
+                    Uri uri = data.getClipData().getItemAt(i).getUri();
+                    if (isFileChooserUriSafe(uri)) uris.add(uri);
                 }
-            } else if (data.getData() != null) {
+            } else if (isFileChooserUriSafe(data.getData())) {
                 uris.add(data.getData());
             }
         }

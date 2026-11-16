@@ -426,6 +426,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
             <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
             <span class='entry-action-label'>Import from eLabFTW</span>
+            <span class='mobile-import-label'>Import</span>
           </button>
           <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
         </div>

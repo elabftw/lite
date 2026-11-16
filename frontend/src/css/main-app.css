@@ -74,7 +74,8 @@
   place-items: center;
 }
 
-.mobile-import-icon {
+.mobile-import-icon,
+.mobile-import-label {
   display: none;
 }
 
@@ -159,6 +160,10 @@
 
   .mobile-import-icon {
     display: block;
+  }
+
+  .mobile-import-label {
+    display: inline;
   }
 
   .profile-settings .panel .justify-between {
