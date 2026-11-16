@@ -273,6 +273,9 @@ a, .link-button {
 
 .modal {
   background: var(--dark-blue);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   width: min(520px, calc(100vw - 2rem));
 }
 

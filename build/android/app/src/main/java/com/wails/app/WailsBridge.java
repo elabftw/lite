@@ -52,6 +52,7 @@ import androidx.biometric.BiometricManager;
 import androidx.biometric.BiometricPrompt;
 import androidx.core.app.NotificationCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.content.FileProvider;
 import androidx.fragment.app.FragmentActivity;
 import androidx.security.crypto.EncryptedSharedPreferences;
 import androidx.security.crypto.MasterKey;
@@ -59,6 +60,7 @@ import androidx.security.crypto.MasterKey;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.Locale;
 import java.util.concurrent.Executor;
 
@@ -454,6 +456,25 @@ public class WailsBridge {
                 JSONObject opts = new JSONObject(json);
                 String text = opts.optString("text", "");
                 String url = opts.optString("url", "");
+                // A file:// URL shares the file itself (through the FileProvider)
+                // rather than its path as text.
+                Uri parsed = url.isEmpty() ? null : Uri.parse(url);
+                if (parsed != null && "file".equals(parsed.getScheme()) && parsed.getPath() != null) {
+                    File file = new File(parsed.getPath());
+                    Uri content = FileProvider.getUriForFile(
+                            activity, activity.getPackageName() + ".fileprovider", file);
+                    String mime = opts.optString("mime", "");
+                    Intent send = new Intent(Intent.ACTION_SEND);
+                    send.setType(mime.isEmpty() ? "application/octet-stream" : mime);
+                    send.putExtra(Intent.EXTRA_STREAM, content);
+                    if (!text.isEmpty()) send.putExtra(Intent.EXTRA_TEXT, text);
+                    send.setClipData(ClipData.newRawUri(file.getName(), content));
+                    send.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    Intent chooser = Intent.createChooser(send, null);
+                    chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_GRANT_READ_URI_PERMISSION);
+                    activity.startActivity(chooser);
+                    return;
+                }
                 StringBuilder body = new StringBuilder();
                 if (!text.isEmpty()) body.append(text);
                 if (!url.isEmpty()) {

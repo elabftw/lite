@@ -44,6 +44,11 @@ func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) er
 	}
 
 	a.index = idx
+
+	// remove plaintext files shared during a previous run
+	if isMobile() {
+		clearExports()
+	}
 	return nil
 }
 
@@ -114,6 +119,11 @@ func (a *App) LockProfile() {
 		zeroBytes(a.activeKey)
 	}
 	a.activeKey = nil
+
+	// do not leave decrypted exports behind a locked profile
+	if isMobile() {
+		clearExports()
+	}
 }
 
 // DeleteProfile deletes a profile after verifying its passphrase.
