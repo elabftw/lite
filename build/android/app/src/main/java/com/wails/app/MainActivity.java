@@ -1011,10 +1011,19 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public void onBackPressed() {
-        if (webView != null && webView.canGoBack()) {
-            webView.goBack();
-        } else {
+        if (webView == null) {
             super.onBackPressed();
+            return;
         }
+        // Let the frontend dismiss menus and warn about unsaved changes first.
+        // When no app view handles Back, preserve the original WebView fallback.
+        webView.evaluateJavascript(
+                "(function(){var e=new Event('elabftw:native-back',{cancelable:true});" +
+                        "window.dispatchEvent(e);return e.defaultPrevented;})()",
+                handled -> {
+                    if ("true".equals(handled)) return;
+                    if (webView != null && webView.canGoBack()) webView.goBack();
+                    else MainActivity.super.onBackPressed();
+                });
     }
 }

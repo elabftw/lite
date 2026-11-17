@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     ListEntries,
     GetEntry,
@@ -107,6 +107,53 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let mobileGlobalActionsOpen = $state(false);
   let entryToDelete = $state<{id: number; title: string} | null>(null);
   let deletingEntry = $state(false);
+  let savingEntry = $state(false);
+  let pendingLeave = $state<'index' | 'logout' | null>(null);
+  let savedDraft = $state<{title: string; body: string; contentType: 1 | 2}>({
+    title: '', body: '', contentType: 1,
+  });
+  let profileSettingsReturnView = $state<'index' | 'editor'>('index');
+  let keyboardVisible = $state(false);
+  let online = $state(true);
+  let entriesScrollY = 0;
+  const hasUnsavedChanges = $derived(
+    (view === 'editor' || (view === 'profile' && profileSettingsReturnView === 'editor')) &&
+    (entryTitle !== savedDraft.title ||
+      entryMainText !== savedDraft.body ||
+      entryContentType !== savedDraft.contentType)
+  );
+
+  async function finishNavigation(target: 'index' | 'logout'): Promise<void> {
+    if (target === 'index') {
+      await refreshEntries();
+      showAlert(null);
+      view = 'index';
+      await tick();
+      window.scrollTo(0, entriesScrollY);
+    } else {
+      try {
+        await LockProfile();
+        onLogout?.();
+      } catch (e: unknown) {
+        showAlert({type: 'error', message: errorMessage(e)});
+      }
+    }
+  }
+
+  function discardAndLeave(): void {
+    const target = pendingLeave;
+    pendingLeave = null;
+    if (target) void finishNavigation(target);
+  }
+
+  async function saveAndLeave(): Promise<void> {
+    const target = pendingLeave;
+    if (!target) return;
+    if (await saveOrUpdateEntry() && !hasUnsavedChanges) {
+      pendingLeave = null;
+      await finishNavigation(target);
+    }
+  }
 
   // Load the preferred editor from this profile's SQLite settings
   async function loadPreferences(): Promise<void> {
@@ -129,10 +176,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
     entryMainText = entry.body;
     selectedEntry = entry;
     entryContentType = entry.contentType === 2 ? 2 : 1;
+    savedDraft = {title: entry.title, body: entry.body, contentType: entryContentType};
     remoteLinks = links;
   }
 
   async function openEntry(id: number): Promise<void> {
+    if (view === 'index') entriesScrollY = window.scrollY;
     showAlert(null);
     currentEntryId = id;
     try {
@@ -156,58 +205,70 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 
   async function openIndex(): Promise<void> {
-    await refreshEntries();
-    showAlert(null);
-    view = 'index';
+    if (hasUnsavedChanges) {
+      pendingLeave = 'index';
+      return;
+    }
+    await finishNavigation('index');
   }
 
   async function logout(): Promise<void> {
-    try {
-      await LockProfile();
-      onLogout?.();
-    } catch (e: unknown) {
-      showAlert({type: 'error', message: errorMessage(e)});
+    if (hasUnsavedChanges) {
+      pendingLeave = 'logout';
+      return;
     }
+    await finishNavigation('logout');
   }
 
   // Start a blank entry using the profile's preferred editor
   function openEditor(): void {
+    if (view === 'index') entriesScrollY = window.scrollY;
     view = 'editor';
     entryTitle = '';
     entryMainText = '';
     selectedEntry = null;
     entryContentType = preferredEditor === 'markdown' ? 2 : 1;
+    savedDraft = {title: '', body: '', contentType: entryContentType};
     showAlert(null);
     currentEntryId = null;
     remoteLinks = [];
   }
 
   // Save a new entry or update the selected one
-  async function saveOrUpdateEntry(): Promise<void> {
+  async function saveOrUpdateEntry(): Promise<boolean> {
+    if (savingEntry) return false;
     if (editorFormatMismatch) {
       showAlert({type: 'warning', message: 'Change your preferred editor in Profile settings to edit this entry.'});
-      return;
+      return false;
     }
+    if (!entryTitle.trim()) {
+      showAlert({type: 'warning', message: 'Enter a title before saving.'});
+      return false;
+    }
+    const snapshot = {title: entryTitle, body: entryMainText, contentType: entryContentType};
+    savingEntry = true;
     showAlert({type: 'info', message: currentEntryId ? 'Updating...' : 'Saving...'});
     try {
       if (currentEntryId) {
-        await UpdateEntry(profileUuid, currentEntryId, entryTitle, entryMainText, entryContentType);
+        await UpdateEntry(profileUuid, currentEntryId, snapshot.title, snapshot.body, snapshot.contentType);
         remoteLinks = await ListEntryRemoteLinks(profileUuid, currentEntryId);
         showAlert({type: 'success', message: 'Entry updated ✔'});
       } else {
-        const id = await SaveEntry(profileUuid, entryTitle, entryMainText, entryContentType);
+        const id = await SaveEntry(profileUuid, snapshot.title, snapshot.body, snapshot.contentType);
         currentEntryId = id;
         showAlert({type: 'success', message: `Saved with id ${id} ✔`});
       }
-
+      savedDraft = snapshot;
       await refreshEntries();
       if (currentEntryId) selectedEntry = await GetEntry(profileUuid, currentEntryId);
+      return true;
     } catch (e: unknown) {
       showAlert({type: 'error', message: errorMessage(e)});
+      return false;
+    } finally {
+      savingEntry = false;
     }
   }
-
-  let profileSettingsReturnView = $state<'index' | 'editor'>('index');
 
   function openProfileSettings(): void {
     showAlert(null);
@@ -245,13 +306,90 @@ SPDX-License-Identifier: GPL-3.0-or-later
     }
   }
 
-  const handleSubmit = preventDefaultSubmit(saveOrUpdateEntry);
+  const handleSubmit = preventDefaultSubmit(async () => { await saveOrUpdateEntry(); });
 
   onMount(() => {
     if (window.matchMedia('(max-width: 720px)').matches) entryInfoExpanded = false;
     showAlert(null);
     void refreshEntries();
     void loadPreferences();
+
+    const updateConnectivity = () => { online = navigator.onLine; };
+    const updateKeyboard = () => {
+      const viewport = window.visualViewport;
+      const active = document.activeElement;
+      const editing = active?.matches('input, textarea, select, iframe, [contenteditable="true"]');
+      keyboardVisible = Boolean(window.matchMedia('(max-width: 720px)').matches && editing &&
+        (navigator.maxTouchPoints > 0 || (viewport && window.innerHeight - viewport.height > 140)));
+    };
+    const updateKeyboardAfterBlur = () => { window.requestAnimationFrame(updateKeyboard); };
+    let touchStart: {x: number; y: number} | null = null;
+    const touchBegin = (event: TouchEvent) => {
+      touchStart = null;
+      if (event.touches.length !== 1 || !window.matchMedia('(max-width: 720px)').matches ||
+        !/iPhone|iPad|iPod/.test(navigator.userAgent) || event.touches[0].clientX > 28 ||
+        event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable], .tox-tinymce, .CodeMirror, .mobile-app-nav')) return;
+      touchStart = {x: event.touches[0].clientX, y: event.touches[0].clientY};
+    };
+    const touchEnd = (event: TouchEvent) => {
+      if (!touchStart || event.changedTouches.length !== 1) return;
+      const dx = event.changedTouches[0].clientX - touchStart.x;
+      const dy = Math.abs(event.changedTouches[0].clientY - touchStart.y);
+      touchStart = null;
+      if (dx > 90 && dy < dx * 0.55) {
+        window.dispatchEvent(new Event('elabftw:native-back', {cancelable: true}));
+      }
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const nativeBack = (event: Event) => {
+      if (pendingLeave) {
+        event.preventDefault();
+        pendingLeave = null;
+      } else if (entryToDelete) {
+        event.preventDefault();
+        if (!deletingEntry) entryToDelete = null;
+      } else if (importModalOpen || pushModalOpen || remoteModalMode) {
+        // Do not navigate behind an open dialog.
+        event.preventDefault();
+      } else if (mobileProfileOpen || mobileGlobalActionsOpen || desktopProfileOpen) {
+        event.preventDefault();
+        mobileProfileOpen = false;
+        mobileGlobalActionsOpen = false;
+        desktopProfileOpen = false;
+      } else if (view === 'profile') {
+        event.preventDefault();
+        closeProfileSettings();
+      } else if (view === 'editor') {
+        event.preventDefault();
+        void openIndex();
+      }
+    };
+    updateConnectivity();
+    window.addEventListener('online', updateConnectivity);
+    window.addEventListener('offline', updateConnectivity);
+    window.addEventListener('beforeunload', beforeUnload);
+    window.addEventListener('elabftw:native-back', nativeBack);
+    window.addEventListener('focusin', updateKeyboard);
+    window.addEventListener('focusout', updateKeyboardAfterBlur);
+    window.visualViewport?.addEventListener('resize', updateKeyboard);
+    window.addEventListener('touchstart', touchBegin, {passive: true});
+    window.addEventListener('touchend', touchEnd, {passive: true});
+
+    return () => {
+      window.removeEventListener('online', updateConnectivity);
+      window.removeEventListener('offline', updateConnectivity);
+      window.removeEventListener('beforeunload', beforeUnload);
+      window.removeEventListener('elabftw:native-back', nativeBack);
+      window.removeEventListener('focusin', updateKeyboard);
+      window.removeEventListener('focusout', updateKeyboardAfterBlur);
+      window.visualViewport?.removeEventListener('resize', updateKeyboard);
+      window.removeEventListener('touchstart', touchBegin);
+      window.removeEventListener('touchend', touchEnd);
+    };
   });
 
   async function confirmImport(instanceId: number, entityType: 'experiment' | 'resource', remoteId: number): Promise<void> {
@@ -267,6 +405,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   // modal helpers
   function openPushModal(mode: 'single' | 'all', entryId: number | null = null): void {
+    if (mode === 'single' && hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pushing to eLabFTW.'});
+      return;
+    }
     pushMode = mode;
     pushEntryId = entryId;
     showAlert(null);
@@ -280,6 +422,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   function openRemoteModal(mode: 'open' | 'pull' | 'unlink'): void {
     if (remoteLinks.length === 0) return;
+    if (mode === 'pull' && hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pulling remote content.'});
+      return;
+    }
     showAlert(null);
     if (mode === 'open' && remoteLinks.length === 1) {
       openExternalURL(remoteLinks[0].url);
@@ -294,6 +440,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 
   async function confirmPull(link: main.EntryRemoteLink): Promise<void> {
+    if (hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pulling remote content.'});
+      return;
+    }
     const entryId = currentEntryId;
     if (entryId === null) {
       showAlert({type: 'error', message: 'No entry selected.'});
@@ -413,6 +563,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <div class='grid'>
             <h1 class='text-ellipsis'>{entryTitle.trim() || 'Untitled entry'}</h1>
             <EntityCategoryStatus remoteDetails={selectedEntry?.remoteDetails} />
+            {#if hasUnsavedChanges}
+              <span class='entry-draft-status' role='status'>● Unsaved changes</span>
+            {:else if currentEntryId !== null}
+              <span class='entry-saved-status' role='status'>✓ Saved locally</span>
+            {/if}
           </div>
         </div>
       {:else} <!-- view === 'profile' -->
@@ -442,10 +597,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
       </details>
     </div>
   </header>
+  {#if !online}
+    <p class='offline-status' role='status'>Offline: local entries remain available. Remote actions need a connection.</p>
+  {/if}
 
   <!-- VIEW MODE -->
   <!-- Navigation appears only on phone-sized screens; the desktop header is unchanged. -->
-  <nav class='mobile-app-nav' aria-label='Main navigation'>
+  <nav class='mobile-app-nav' class:keyboard-visible={keyboardVisible} aria-label='Main navigation'>
     <button type='button' disabled={view === 'index'} aria-label='Back'
       onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; if (view === 'profile') closeProfileSettings(); else void openIndex(); }}>
       <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg>
@@ -476,7 +634,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
             Push all to eLabFTW
           </button>
         {:else if view === 'editor'}
-        <button class='mobile-save-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch} onclick={() => mobileGlobalActionsOpen = false}>
+        <button class='mobile-save-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry} onclick={() => mobileGlobalActionsOpen = false}>
           <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
           Save entry
         </button>
@@ -672,7 +830,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M214.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 109.3V480c0 17.7 14.3 32 32 32s32-14.3 32-32V109.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z'/></svg>
               <span class='editor-action-label'>Push</span>
             </button>
-            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch} aria-label='Save' title='Save'>
+            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry} aria-label='Save' title='Save'>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
               <span class='editor-action-label'>Save</span>
             </button>
@@ -780,6 +938,20 @@ SPDX-License-Identifier: GPL-3.0-or-later
       onPull={confirmPull}
       onUnlink={confirmUnlink}
     />
+  {/if}
+  {#if pendingLeave}
+    <Modal title='Unsaved changes' onClose={() => pendingLeave = null}>
+      <p>This entry has unsaved local changes. You can keep editing, discard them, or save before leaving.</p>
+      {#snippet actions()}
+        <div class='unsaved-leave-actions'>
+          <button type='button' class='btn btn-secondary' disabled={savingEntry} onclick={() => pendingLeave = null}>Keep editing</button>
+          <button type='button' class='btn btn-danger' disabled={savingEntry} onclick={discardAndLeave}>Discard changes</button>
+          <button type='button' class='btn btn-primary' disabled={savingEntry || editorFormatMismatch || !entryTitle.trim()} onclick={saveAndLeave}>
+            {savingEntry ? 'Saving...' : 'Save and leave'}
+          </button>
+        </div>
+      {/snippet}
+    </Modal>
   {/if}
   {#if entryToDelete}
     <Modal title='Delete entry' onClose={() => { if (!deletingEntry) entryToDelete = null; }}>

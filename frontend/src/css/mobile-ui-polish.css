@@ -181,3 +181,62 @@
     min-height: 48px;
   }
 }
+
+/* Local draft state, not a claim that remote content has been synchronized. */
+.entry-draft-status {
+  color: var(--orange-light);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.offline-status {
+  background: var(--dark-blue-2);
+  border: 1px solid var(--orange);
+  border-radius: 10px;
+  color: var(--orange-light);
+  margin: 0 0 1rem;
+  padding: 0.7rem 0.9rem;
+}
+
+.entry-saved-status {
+  color: var(--light-gray);
+  font-size: 0.85rem;
+}
+
+.unsaved-leave-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.unsaved-leave-actions .btn {
+  flex: 1 1 8rem;
+  min-height: 48px;
+}
+
+@media (width <= 720px) {
+  .unsaved-leave-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  /* Avoid covering the active input when the software keyboard is visible. */
+  .mobile-app-nav.keyboard-visible {
+    display: none;
+  }
+
+  .container.editor-container {
+    scroll-padding-bottom: 1.5rem;
+  }
+
+  .mobile-app-nav {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+
+  .modal {
+    max-height: calc(100dvh - max(1rem, env(safe-area-inset-top)));
+    overflow-y: auto;
+  }
+}
