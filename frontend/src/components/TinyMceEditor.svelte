@@ -34,7 +34,6 @@
       menubar: false,
       plugins: 'lists link table code accordion',
       toolbar: 'undo redo | blocks | bold italic | bullist numlist | link table accordion | code',
-      toolbar_mode: 'sliding',
       height: 480,
       branding: false,
       promotion: false,

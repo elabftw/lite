@@ -1,4 +1,9 @@
 /* Mobile-first layouts. Desktop components remain unchanged. */
+.mobile-app-nav,
+.mobile-editor-actions-menu {
+  display: none;
+}
+
 .mobile-entry-controls,
 .mobile-entry-dock {
   display: none;
@@ -22,6 +27,108 @@
 
   .panel {
     border-radius: 16px;
+  }
+
+  /* Compact, thumb-friendly navigation shared by all unlocked views. */
+  .mobile-app-nav {
+    align-items: stretch;
+    background: rgb(27 38 54 / 98%);
+    border-top: 1px solid var(--border-soft);
+    bottom: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    left: 0;
+    padding: 0.35rem max(1rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom));
+    position: fixed;
+    right: 0;
+    z-index: 40;
+  }
+
+  .mobile-app-nav > button,
+  .mobile-app-nav .mobile-profile-menu > summary {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    color: var(--light-gray);
+    display: flex;
+    flex-direction: column;
+    font: inherit;
+    font-size: 0.75rem;
+    gap: 0.15rem;
+    justify-content: center;
+    list-style: none;
+    min-height: 56px;
+    width: 100%;
+  }
+
+  .mobile-app-nav > button.active,
+  .mobile-app-nav > button:focus-visible,
+  .mobile-app-nav .mobile-profile-menu[open] > summary {
+    background: var(--dark-blue-2);
+    color: var(--orange);
+  }
+
+  .mobile-app-nav > button:disabled {
+    opacity: 0.35;
+  }
+
+  .mobile-profile-menu {
+    min-width: 0;
+    position: relative;
+  }
+
+  .mobile-profile-menu > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-profile-popover {
+    background: var(--dark-blue);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    bottom: calc(100% + 0.6rem);
+    box-shadow: 0 14px 30px rgb(0 0 0 / 40%);
+    min-width: 12rem;
+    padding: 0.4rem;
+    position: absolute;
+    right: 0;
+    z-index: 45;
+  }
+
+  .mobile-profile-name {
+    border-bottom: 1px solid var(--border-soft);
+    color: var(--light-gray);
+    margin: 0 0 0.25rem;
+    overflow-wrap: anywhere;
+    padding: 0.55rem 0.7rem;
+  }
+
+  .mobile-profile-popover button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 9px;
+    color: var(--soft-white);
+    display: flex;
+    gap: 0.75rem;
+    min-height: 48px;
+    padding: 0.6rem 0.7rem;
+    text-align: left;
+    width: 100%;
+  }
+
+  .mobile-profile-popover button:hover,
+  .mobile-profile-popover button:focus-visible {
+    background: var(--dark-blue-2);
+  }
+
+  .mobile-profile-popover button:disabled {
+    opacity: 0.45;
+  }
+
+  /* The header still shows the current profile, but settings/logout live in the profile menu. */
+  .app-header .profile-actions > button {
+    display: none;
   }
 
   /* Profile selection and creation */
@@ -134,7 +241,7 @@
     background: transparent;
     border: 0;
     box-shadow: none;
-    padding: 0;
+    padding: 0 0 calc(12rem + env(safe-area-inset-bottom));
   }
 
   .entries-toolbar {
@@ -142,9 +249,18 @@
     padding-bottom: 0.75rem;
   }
 
-  .entries-toolbar .desktop-entry-actions,
-  .desktop-push-all {
+  .entries-toolbar .desktop-entry-actions {
     display: none;
+  }
+
+  .desktop-push-all {
+    display: flex;
+    margin-top: 1.25rem;
+  }
+
+  .desktop-push-all .btn {
+    min-height: 44px;
+    width: 100%;
   }
 
   .mobile-entry-controls {
@@ -232,9 +348,11 @@
   }
 
   .mobile-entry-dock {
+    bottom: calc(70px + env(safe-area-inset-bottom));
     display: grid;
     gap: 0.65rem;
     grid-template-columns: 1fr 1fr;
+    z-index: 30;
   }
 
   .mobile-entry-dock .btn {
@@ -260,38 +378,82 @@
     border-radius: 12px;
   }
 
-  /* Editor: put essential actions below the content, within thumb reach. */
+  /* Entry commands have their own overflow menu, not a fixed button row. */
   .entry-editor-toolbar {
-    background: rgb(30 47 69 / 98%);
-    border-radius: 18px 18px 0 0;
-    bottom: 0;
-    box-shadow: 0 -10px 30px rgb(0 0 0 / 20%);
-    flex-wrap: nowrap;
-    gap: 0.3rem;
-    left: 0;
-    margin: 0;
-    padding: 0.65rem max(0.5rem, env(safe-area-inset-left)) calc(0.65rem + env(safe-area-inset-bottom));
-    position: fixed;
-    right: 0;
-    z-index: 25;
+    display: none;
   }
 
-  .entry-editor-actions {
-    flex: 1;
-    flex-wrap: nowrap;
-    gap: 0.3rem;
-    justify-content: space-evenly;
+  .mobile-editor-actions-menu {
+    display: block;
+    margin: 0 0 0.75rem auto;
+    position: relative;
+    width: max-content;
+    z-index: 35;
   }
 
-  .entry-editor-toolbar .btn {
-    flex: 1 1 0;
+  .mobile-editor-actions-menu summary {
+    align-items: center;
+    background: var(--dark-blue-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    color: var(--soft-white);
+    display: flex;
+    gap: 0.55rem;
+    justify-content: center;
+    list-style: none;
     min-height: 44px;
-    min-width: 0;
-    padding: 0.5rem;
+    padding: 0.65rem 0.9rem;
   }
 
-  .entry-editor-toolbar .btn svg {
-    flex-shrink: 0;
+  .mobile-editor-actions-menu summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .mobile-editor-popover {
+    background: var(--dark-blue);
+    border: 1px solid var(--border-soft);
+    border-radius: 14px;
+    box-shadow: 0 14px 30px rgb(0 0 0 / 40%);
+    display: grid;
+    gap: 0.25rem;
+    padding: 0.4rem;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 0.4rem);
+    width: min(18rem, calc(100vw - 2rem));
+    z-index: 40;
+  }
+
+  .mobile-editor-popover button {
+    align-items: center;
+    background: transparent;
+    border: 0;
+    border-radius: 9px;
+    color: var(--soft-white);
+    display: flex;
+    gap: 0.85rem;
+    min-height: 48px;
+    padding: 0.65rem 0.8rem;
+    text-align: left;
+  }
+
+  .mobile-editor-popover button:hover,
+  .mobile-editor-popover button:focus-visible {
+    background: var(--dark-blue-2);
+  }
+
+  .mobile-editor-popover button:disabled {
+    opacity: 0.5;
+  }
+
+  .mobile-editor-popover .mobile-save-action {
+    color: var(--orange-light);
+    font-weight: 800;
+  }
+
+  .container.editor-container,
+  .profile-settings {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
   }
 
   .editor-container .app-header h1 {
@@ -311,10 +473,6 @@
   .editor-layout .tox-tinymce,
   .editor-layout .EasyMDEContainer {
     max-width: 100%;
-  }
-
-  .editor-layout .tox .tox-toolbar__primary {
-    flex-wrap: nowrap;
   }
 
   .editor-sidebar .panel {
@@ -372,8 +530,3 @@
   }
 }
 
-@media (375px <= width <= 720px) {
-  .entry-editor-toolbar .btn-primary .editor-action-label {
-    display: inline;
-  }
-}
