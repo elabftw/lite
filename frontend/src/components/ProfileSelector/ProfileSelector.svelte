@@ -139,7 +139,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   });
 </script>
 
-<div class='container'>
+<div class='container profile-shell'>
   {#if !showAddProfile}
     <ProfileSelectorList
       {profiles}

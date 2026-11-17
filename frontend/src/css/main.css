@@ -6,6 +6,7 @@
 @import url('easymde.css');
 @import url('uploads.css');
 @import url('entry-editor.css');
+@import url('mobile-first.css');
 
 /* TODO: add stylelint */
 :root {

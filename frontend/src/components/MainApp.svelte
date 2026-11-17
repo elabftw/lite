@@ -57,6 +57,26 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let selectedEntry = $state<main.Entry | null>(null);
   let entryContentType = $state<1 | 2>(1);
   let entries = $state<main.EntrySummary[]>([]);
+  type EntryFilter = 'all' | 'experiment' | 'resource';
+  type EntrySort = 'recent' | 'oldest' | 'title-asc' | 'title-desc' | 'created';
+  let entrySearch = $state('');
+  let entryFilter = $state<EntryFilter>('all');
+  let entrySort = $state<EntrySort>('recent');
+  const visibleEntries = $derived.by(() => {
+    const query = entrySearch.trim().toLocaleLowerCase();
+    return entries
+      .filter((entry) => (entryFilter === 'all' || entry.remoteType === entryFilter) &&
+        (!query || (entry.title || '').toLocaleLowerCase().includes(query) || String(entry.id).includes(query)))
+      .sort((a, b) => {
+        if (entrySort === 'title-asc' || entrySort === 'title-desc') {
+          const order = a.title.localeCompare(b.title, undefined, {sensitivity: 'base'});
+          return entrySort === 'title-asc' ? order : -order;
+        }
+        const key = entrySort === 'created' ? 'createdAt' : 'modifiedAt';
+        const difference = (Date.parse(b[key]) || 0) - (Date.parse(a[key]) || 0);
+        return entrySort === 'oldest' ? -difference : difference;
+      });
+  });
   let view = $state<View>('index');
   let loading = $state(false);
   let currentEntryId = $state<number | null>(null); // null means a new entry, otherwise update the selected one
@@ -80,6 +100,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let remoteActionInProgress = $state(false);
   // Recreate the uploads panel after a pull to load the replacement files
   let uploadsRefreshKey = $state(0);
+  let entryInfoExpanded = $state(true);
 
   // Load the preferred editor from this profile's SQLite settings
   async function loadPreferences(): Promise<void> {
@@ -216,6 +237,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   const handleSubmit = preventDefaultSubmit(saveOrUpdateEntry);
 
   onMount(() => {
+    if (window.matchMedia('(max-width: 720px)').matches) entryInfoExpanded = false;
     showAlert(null);
     void refreshEntries();
     void loadPreferences();
@@ -411,7 +433,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   <!-- VIEW MODE -->
   {#if view === 'index'}
-    <section class='panel' aria-labelledby='entries-title'>
+    <section class='panel entries-page' aria-labelledby='entries-title'>
       <div class='entries-toolbar flex justify-between items-center mb-2 border-bottom'>
         <div class='entries-summary flex items-center gap-1'>
           <div class='icon' aria-hidden='true'>&#x2756;</div>
@@ -422,13 +444,36 @@ SPDX-License-Identifier: GPL-3.0-or-later
             </span>
           </div>
         </div>
-        <div class='entries-actions flex gap-1'>
+        <div class='entries-actions desktop-entry-actions flex gap-1'>
           <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
             <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
             <span class='entry-action-label'>Import from eLabFTW</span>
             <span class='mobile-import-label'>Import</span>
           </button>
           <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
+        </div>
+      </div>
+
+      <div class='mobile-entry-controls'>
+        <label class='mobile-entry-search'>
+          <svg aria-hidden='true' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/></svg>
+          <input type='search' placeholder='Search entries...' aria-label='Search entries' bind:value={entrySearch} />
+        </label>
+        <div class='mobile-entry-filters' role='group' aria-label='Filter entries'>
+          <button type='button' class:active={entryFilter === 'all'} aria-pressed={entryFilter === 'all'} onclick={() => entryFilter = 'all'}>All</button>
+          <button type='button' class:active={entryFilter === 'experiment'} aria-pressed={entryFilter === 'experiment'} onclick={() => entryFilter = 'experiment'}>Experiments</button>
+          <button type='button' class:active={entryFilter === 'resource'} aria-pressed={entryFilter === 'resource'} onclick={() => entryFilter = 'resource'}>Resources</button>
+        </div>
+        <div class='mobile-entry-sort'>
+          <span class='description'>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
+          <label for='entry-sort'>Sort by</label>
+          <select id='entry-sort' class='input' bind:value={entrySort}>
+            <option value='recent'>Last edited</option>
+            <option value='oldest'>Oldest edited</option>
+            <option value='created'>Recently created</option>
+            <option value='title-asc'>Title A-Z</option>
+            <option value='title-desc'>Title Z-A</option>
+          </select>
         </div>
       </div>
 
@@ -442,9 +487,15 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <h3>No entries yet</h3>
           <p>Create your first entry to start writing.</p>
         </div>
+      {:else if visibleEntries.length === 0}
+        <div class='empty-state'>
+          <h3>No matching entries</h3>
+          <p>Try another search or filter.</p>
+          <button type='button' class='btn btn-secondary' onclick={() => { entrySearch = ''; entryFilter = 'all'; }}>Clear filters</button>
+        </div>
       {:else}
         <div class='grid gap-1'>
-          {#each entries as e (e.id)}
+          {#each visibleEntries as e (e.id)}
             <div class='entry-row flex gap-1'>
               <button type='button' class='entry-card' onclick={() => openEntry(e.id)} disabled={!preferencesReady}>
                 <span class='icon-sm' aria-hidden='true'><EntityTypeIcon type={e.remoteType} /></span>
@@ -470,10 +521,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
           {/each}
         </div>
       {/if}
-      <div class='flex justify-end mt-2 gap-1'>
+      <div class='desktop-push-all flex justify-end mt-2 gap-1'>
         {#if entries.length !== 0}
           <button class='btn btn-secondary' onclick={() => openPushModal('all')}>Push all entries to eLabFTW</button>
         {/if}
+      </div>
+      <div class='mobile-entry-dock'>
+        <button class='btn btn-secondary' type='button' onclick={() => { showAlert(null); importModalOpen = true; }}>
+          <svg aria-hidden='true' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v12m-5-5 5 5 5-5M5 20h14'/></svg>
+          Import
+        </button>
+        <button class='btn btn-primary' type='button' onclick={openEditor} disabled={!preferencesReady}>
+          <span aria-hidden='true'>+</span> Create entry
+        </button>
       </div>
     </section>
     <!-- PROFILE SETTINGS -->
@@ -577,14 +637,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
         {/if}
         </form>
         <aside class='editor-sidebar'>
-          <section class='panel'>
-            <h3 class='border-bottom'>Entry information</h3>
+          <details class='panel entry-info-accordion' bind:open={entryInfoExpanded}>
+            <summary class='entry-panel-heading'>
+              <h3>Entry information</h3>
+              <svg class='entry-chevron' aria-hidden='true' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>
+            </summary>
+            <div class='entry-detail-content'>
             <div class='entry-info-row'><span>Type</span><span class='flex items-center gap-03'><EntityTypeIcon type={linkedEntityType} /> {linkedEntityType === 'resource' ? 'Resource' : linkedEntityType === 'experiment' ? 'Experiment' : 'Local entry'}</span></div>
             <div class='entry-info-row'><span>Category / Status</span><EntityCategoryStatus remoteDetails={selectedEntry?.remoteDetails} emptyLabel={remoteLinks.length > 0 ? 'Pull to load' : 'Not linked'} /></div>
             <div class='entry-info-row'><span>Created</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.createdAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Modified</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.modifiedAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Content type</span><span>{entryContentType === 1 ? 'HTML (TinyMCE)' : 'Markdown'}</span></div>
-          </section>
+            </div>
+          </details>
           {#key uploadsRefreshKey}
             <UploadsPanel
               {profileUuid}

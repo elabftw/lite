@@ -37,14 +37,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 </script>
 
-<section>
+<section class='profile-list-page'>
   <p class='header-subtitle'>Welcome back</p>
-  <header class='flex justify-between items-center mb-2'>
+  <header class='profile-list-header flex justify-between items-center mb-2'>
     <div>
       <h1>Select a profile</h1>
       <h2>Choose a profile to unlock your saved entries.</h2>
     </div>
-    <button class='btn btn-primary flex-auto' onclick={openAddProfile}>
+    <button class='btn btn-primary flex-auto profile-list-add' onclick={openAddProfile}>
       <span aria-hidden='true'>+</span>Add profile
     </button>
   </header>

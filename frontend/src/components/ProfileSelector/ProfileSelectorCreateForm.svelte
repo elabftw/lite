@@ -25,7 +25,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   const handleSubmit = preventDefaultSubmit(() => confirmAddProfile(name, passphrase));
 </script>
 
-<section class='panel'>
+<section class='panel profile-create'>
   <form onsubmit={handleSubmit}>
     <h1>Create a profile</h1>
     <h2 class='mb-2'>Add a new local profile for your entries.</h2>
@@ -52,7 +52,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
       />
     </div>
 
-    <div class='flex gap-1 mt-2 justify-end'>
+    <div class='profile-create-actions flex gap-1 mt-2 justify-end'>
       <button type='button' class='btn btn-secondary' onclick={closeAddProfile}>
         Cancel
       </button>

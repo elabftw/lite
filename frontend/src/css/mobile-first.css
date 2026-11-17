@@ -1,0 +1,379 @@
+/* Mobile-first layouts. Desktop components remain unchanged. */
+.mobile-entry-controls,
+.mobile-entry-dock {
+  display: none;
+}
+
+@media (width <= 720px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .container,
+  .container.editor-container {
+    padding: 1rem 0 6.75rem;
+    width: calc(100% - 2rem);
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 7vw, 2.3rem);
+    line-height: 1.12;
+  }
+
+  .panel {
+    border-radius: 16px;
+  }
+
+  /* Profile selection and creation */
+  .profile-shell {
+    min-height: 100dvh;
+  }
+
+  .profile-list-page,
+  .profile-create {
+    padding-bottom: 5rem;
+  }
+
+  .profile-list-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .profile-list-header h2 {
+    line-height: 1.4;
+  }
+
+  .profile-list-page > .panel {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .profile-list-page .entry-card {
+    border-radius: 16px;
+    min-height: 82px;
+    padding: 1rem;
+  }
+
+  .profile-list-page .entry-card .profile-avatar {
+    flex-shrink: 0;
+    height: 44px;
+    transform: none;
+    width: 44px;
+  }
+
+  .profile-list-page .entry-card .text-ellipsis {
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  .profile-list-add,
+  .profile-create-actions,
+  .mobile-entry-dock {
+    background: rgb(27 38 54 / 97%);
+    border-top: 1px solid var(--border-soft);
+    bottom: 0;
+    box-shadow: 0 -12px 25px rgb(0 0 0 / 12%);
+    left: 0;
+    padding: 0.75rem max(1rem, env(safe-area-inset-right)) calc(0.75rem + env(safe-area-inset-bottom));
+    position: fixed;
+    right: 0;
+    z-index: 20;
+  }
+
+  .profile-list-add {
+    background: linear-gradient(180deg, var(--orange-light), var(--orange));
+    border: 1px solid var(--orange);
+    border-radius: 12px;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    left: 1rem;
+    margin: 0;
+    min-height: 52px;
+    right: 1rem;
+    width: auto;
+  }
+
+  .profile-create {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0 0 6rem;
+  }
+
+  .profile-create form {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .profile-create-actions {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr 1fr;
+    margin: 0;
+  }
+
+  .profile-create-actions .btn {
+    min-height: 52px;
+  }
+
+  .auth-unlock-card {
+    border: 1px solid var(--border-soft);
+    border-radius: 0 0 16px 16px;
+    padding: 1rem;
+    transform: none;
+  }
+
+  .auth-unlock-card .btn {
+    min-height: 44px;
+  }
+
+  /* Entries list: secondary actions stay in a reachable bottom dock. */
+  .entries-page {
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .entries-toolbar {
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .entries-toolbar .desktop-entry-actions,
+  .desktop-push-all {
+    display: none;
+  }
+
+  .mobile-entry-controls {
+    display: grid;
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  .mobile-entry-search {
+    align-items: center;
+    background: var(--surface-dark-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    color: var(--light-gray);
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 0.9rem;
+  }
+
+  .mobile-entry-search input {
+    background: transparent;
+    border: 0;
+    color: var(--soft-white);
+    font: inherit;
+    min-height: 48px;
+    min-width: 0;
+    outline: none;
+    width: 100%;
+  }
+
+  .mobile-entry-search:focus-within {
+    border-color: var(--orange-hover);
+  }
+
+  .mobile-entry-filters {
+    display: flex;
+    gap: 0.5rem;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .mobile-entry-filters button {
+    background: var(--dark-blue-2);
+    border: 1px solid var(--border-soft);
+    border-radius: 12px;
+    color: var(--soft-white);
+    cursor: pointer;
+    flex-shrink: 0;
+    font: inherit;
+    min-height: 44px;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .mobile-entry-filters button.active {
+    background: var(--orange);
+    border-color: var(--orange);
+    color: var(--orange-dark);
+    font-weight: 800;
+  }
+
+  .mobile-entry-filters button:focus-visible {
+    outline: 2px solid var(--orange-light);
+    outline-offset: 2px;
+  }
+
+  .mobile-entry-sort {
+    align-items: center;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: space-between;
+  }
+
+  .mobile-entry-sort label {
+    color: var(--light-gray);
+    font-size: 0.8rem;
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  .mobile-entry-sort select.input {
+    font-size: 0.9rem;
+    margin: 0;
+    max-width: 155px;
+    min-height: 44px;
+  }
+
+  .mobile-entry-dock {
+    display: grid;
+    gap: 0.65rem;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .mobile-entry-dock .btn {
+    min-height: 52px;
+    min-width: 0;
+    padding: 0.6rem;
+  }
+
+  .entry-row {
+    align-items: stretch;
+    display: grid;
+    gap: 0.5rem;
+    grid-template-columns: minmax(0, 1fr) 44px;
+  }
+
+  .entry-row .entry-card {
+    border-radius: 14px;
+    min-height: 88px;
+  }
+
+  .entry-row .entry-delete-button {
+    align-self: stretch;
+    border-radius: 12px;
+  }
+
+  /* Editor: put essential actions below the content, within thumb reach. */
+  .entry-editor-toolbar {
+    background: rgb(30 47 69 / 98%);
+    border-radius: 18px 18px 0 0;
+    bottom: 0;
+    box-shadow: 0 -10px 30px rgb(0 0 0 / 20%);
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    left: 0;
+    margin: 0;
+    padding: 0.65rem max(0.5rem, env(safe-area-inset-left)) calc(0.65rem + env(safe-area-inset-bottom));
+    position: fixed;
+    right: 0;
+    z-index: 25;
+  }
+
+  .entry-editor-actions {
+    flex: 1;
+    flex-wrap: nowrap;
+    gap: 0.3rem;
+    justify-content: space-evenly;
+  }
+
+  .entry-editor-toolbar .btn {
+    flex: 1 1 0;
+    min-height: 44px;
+    min-width: 0;
+    padding: 0.5rem;
+  }
+
+  .entry-editor-toolbar .btn svg {
+    flex-shrink: 0;
+  }
+
+  .editor-container .app-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .editor-layout,
+  .editor-sidebar {
+    min-width: 0;
+  }
+
+  .editor-layout > form {
+    padding: 1rem;
+  }
+
+  .editor-layout textarea,
+  .editor-layout .tox-tinymce,
+  .editor-layout .EasyMDEContainer {
+    max-width: 100%;
+  }
+
+  .editor-layout .tox .tox-toolbar__primary {
+    flex-wrap: nowrap;
+  }
+
+  .editor-sidebar .panel {
+    padding: 1rem;
+  }
+
+  .entry-info-accordion .entry-detail-content {
+    margin-top: 0.65rem;
+  }
+
+  /* Dialogs become bottom sheets. Their actions stay visible when scrolled. */
+  .modal-backdrop {
+    align-items: end;
+    display: grid;
+  }
+
+  .modal {
+    border-radius: 20px 20px 0 0;
+    margin: 0;
+    max-height: calc(100dvh - 2rem);
+    padding: 1.25rem 1rem calc(1rem + env(safe-area-inset-bottom));
+    width: 100%;
+  }
+
+  .modal h1 {
+    font-size: 1.5rem;
+    line-height: 1.2;
+  }
+
+  .modal footer {
+    background: var(--dark-blue);
+    bottom: calc(-1rem - env(safe-area-inset-bottom));
+    margin-bottom: 0;
+    padding: 1rem 0 calc(0.75rem + env(safe-area-inset-bottom));
+    position: sticky;
+  }
+
+  .modal footer .btn {
+    flex: 1;
+    min-height: 48px;
+  }
+
+  .modal input,
+  .modal select {
+    min-width: 0;
+  }
+
+  /* Settings stay readable at phone widths. */
+  .profile-settings .panel {
+    border-radius: 16px;
+  }
+
+  .profile-settings form .btn {
+    min-height: 44px;
+  }
+}
+
+@media (375px <= width <= 720px) {
+  .entry-editor-toolbar .btn-primary .editor-action-label {
+    display: inline;
+  }
+}
