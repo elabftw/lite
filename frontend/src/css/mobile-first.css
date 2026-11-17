@@ -63,15 +63,11 @@
   }
 
   .mobile-app-nav > button.active,
-  .mobile-app-nav > button:focus-visible,
+  .mobile-app-nav > :focus-visible,
   .mobile-app-nav .mobile-profile-menu[open] > summary,
   .mobile-app-nav .mobile-global-actions-menu[open] > summary {
     background: var(--dark-blue-2);
     color: var(--orange);
-  }
-
-  .mobile-app-nav > button:disabled {
-    opacity: 0.35;
   }
 
   .mobile-profile-menu,
@@ -100,8 +96,11 @@
   }
 
   .mobile-profile-name {
+    align-items: center;
     border-bottom: 1px solid var(--border-soft);
     color: var(--light-gray);
+    display: flex;
+    gap: 0.6rem;
     margin: 0 0 0.25rem;
     overflow-wrap: anywhere;
     padding: 0.55rem 0.7rem;
@@ -145,12 +144,6 @@
 
   .app-header {
     margin-bottom: 0.75rem;
-  }
-
-  .mobile-profile-name {
-    align-items: center;
-    display: flex;
-    gap: 0.6rem;
   }
 
   .mobile-profile-initials {
@@ -365,7 +358,7 @@
     padding-bottom: 0.25rem;
   }
 
-  .mobile-entry-filters button {
+  .mobile-entry-filters .entry-filter-option {
     background: var(--dark-blue-2);
     border: 1px solid var(--border-soft);
     border-radius: 12px;
@@ -377,16 +370,21 @@
     padding: 0.45rem 0.85rem;
   }
 
-  .mobile-entry-filters button.active {
+  .mobile-entry-filters .entry-filter-option.active {
     background: var(--orange);
     border-color: var(--orange);
     color: var(--orange-dark);
     font-weight: 800;
   }
 
-  .mobile-entry-filters button:focus-visible {
+  .mobile-entry-filters .entry-filter-option:focus-visible {
     outline: 2px solid var(--orange-light);
     outline-offset: 2px;
+  }
+
+  /* Keep disabled nav controls less prominent than enabled actions. */
+  .mobile-app-nav > button:disabled {
+    opacity: 0.35;
   }
 
   .mobile-entry-sort {
@@ -465,7 +463,7 @@
 
   .editor-layout textarea,
   .editor-layout .tox-tinymce,
-  .editor-layout .EasyMDEContainer {
+  .editor-layout [class~="EasyMDEContainer"] {
     max-width: 100%;
   }
 
@@ -491,7 +489,7 @@
     width: 100%;
   }
 
-  .modal h1 {
+  .modal #modal-title {
     font-size: 1.5rem;
     line-height: 1.2;
   }

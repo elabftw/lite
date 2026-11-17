@@ -523,9 +523,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <input type='search' placeholder='Search entries...' aria-label='Search entries' bind:value={entrySearch} />
         </label>
         <div class='mobile-entry-filters' role='group' aria-label='Filter entries'>
-          <button type='button' class:active={entryFilter === 'all'} aria-pressed={entryFilter === 'all'} onclick={() => entryFilter = 'all'}>All</button>
-          <button type='button' class:active={entryFilter === 'experiment'} aria-pressed={entryFilter === 'experiment'} onclick={() => entryFilter = 'experiment'}>Experiments</button>
-          <button type='button' class:active={entryFilter === 'resource'} aria-pressed={entryFilter === 'resource'} onclick={() => entryFilter = 'resource'}>Resources</button>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'all'} aria-pressed={entryFilter === 'all'} onclick={() => entryFilter = 'all'}>All</button>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'experiment'} aria-pressed={entryFilter === 'experiment'} onclick={() => entryFilter = 'experiment'}>Experiments</button>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'resource'} aria-pressed={entryFilter === 'resource'} onclick={() => entryFilter = 'resource'}>Resources</button>
         </div>
         <div class='mobile-entry-sort'>
           <span class='description'>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
