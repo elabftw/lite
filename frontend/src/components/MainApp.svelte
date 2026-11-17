@@ -31,6 +31,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   import InstancesPushModal from './Instances/InstancesPushModal.svelte';
   import EntryRemoteModal from './Instances/EntryRemoteModal.svelte';
   import EntryImportModal from './Instances/EntryImportModal.svelte';
+  import Modal from './Modal.svelte';
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import TinyMceEditor from "./TinyMceEditor.svelte";
   import { showAlert } from "./stores/alert.svelte";
@@ -104,6 +105,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let mobileProfileOpen = $state(false);
   let desktopProfileOpen = $state(false);
   let mobileGlobalActionsOpen = $state(false);
+  let entryToDelete = $state<{id: number; title: string} | null>(null);
+  let deletingEntry = $state(false);
 
   // Load the preferred editor from this profile's SQLite settings
   async function loadPreferences(): Promise<void> {
@@ -223,17 +226,22 @@ SPDX-License-Identifier: GPL-3.0-or-later
     return currentEntryId;
   }
 
-  async function deleteEntry(id: number, title: string): Promise<void> {
+  function deleteEntry(id: number, title: string): void {
     showAlert(null);
-    const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
-    if (!confirmed) {
-      return;
-    }
+    entryToDelete = {id, title};
+  }
+
+  async function confirmDeleteEntry(): Promise<void> {
+    if (!entryToDelete || deletingEntry) return;
+    deletingEntry = true;
     try {
-      await DeleteEntry(profileUuid, id);
+      await DeleteEntry(profileUuid, entryToDelete.id);
+      entryToDelete = null;
       await refreshEntries();
     } catch (e: unknown) {
       showAlert({type: 'error', message: errorMessage(e)});
+    } finally {
+      deletingEntry = false;
     }
   }
 
@@ -560,6 +568,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <div class='icon' aria-hidden='true'>✎</div>
           <h3>No entries yet</h3>
           <p>Create your first entry to start writing.</p>
+          <button type='button' class='btn btn-primary mobile-empty-create' disabled={!preferencesReady} onclick={openEditor}>
+            + Create entry
+          </button>
         </div>
       {:else if visibleEntries.length === 0}
         <div class='empty-state'>
@@ -769,5 +780,16 @@ SPDX-License-Identifier: GPL-3.0-or-later
       onPull={confirmPull}
       onUnlink={confirmUnlink}
     />
+  {/if}
+  {#if entryToDelete}
+    <Modal title='Delete entry' onClose={() => { if (!deletingEntry) entryToDelete = null; }}>
+      <p>Delete "{entryToDelete.title || 'Untitled entry'}"? This cannot be undone.</p>
+      {#snippet actions()}
+        <button class='btn btn-secondary' type='button' disabled={deletingEntry} onclick={() => entryToDelete = null}>Cancel</button>
+        <button class='btn btn-danger' type='button' disabled={deletingEntry} onclick={confirmDeleteEntry}>
+          {deletingEntry ? 'Deleting...' : 'Delete entry'}
+        </button>
+      {/snippet}
+    </Modal>
   {/if}
 </div>

@@ -158,6 +158,10 @@
   padding-bottom: 0;
 }
 
+.mobile-empty-create {
+  display: none;
+}
+
 @media (width <= 720px) {
   /* Navigation and actions are exclusively in the bottom tab bar. */
   .entry-editor-toolbar,
@@ -169,5 +173,11 @@
   /* The list begins with search instead of a redundant section heading. */
   .entries-page .mobile-entry-controls {
     margin-bottom: 0.75rem;
+  }
+
+  .mobile-empty-create {
+    display: inline-flex;
+    margin-top: 0.75rem;
+    min-height: 48px;
   }
 }

@@ -97,9 +97,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <div class='icon-sm' aria-hidden='true'>+</div>
         <h3>No profiles yet</h3>
         <p>Create a profile to start saving entries.</p>
-        <button class='btn btn-primary' onclick={openAddProfile}>
-          Create your first profile
-        </button>
       </div>
     {/if}
   </section>
