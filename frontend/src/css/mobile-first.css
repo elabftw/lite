@@ -1,6 +1,5 @@
 /* Mobile-first layouts. Desktop components remain unchanged. */
-.mobile-app-nav,
-.mobile-editor-actions-menu {
+.mobile-app-nav {
   display: none;
 }
 
@@ -36,7 +35,7 @@
     border-top: 1px solid var(--border-soft);
     bottom: 0;
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     left: 0;
     padding: 0.35rem max(1rem, env(safe-area-inset-right)) calc(0.35rem + env(safe-area-inset-bottom));
     position: fixed;
@@ -45,7 +44,8 @@
   }
 
   .mobile-app-nav > button,
-  .mobile-app-nav .mobile-profile-menu > summary {
+  .mobile-app-nav .mobile-profile-menu > summary,
+  .mobile-app-nav .mobile-global-actions-menu > summary {
     align-items: center;
     background: transparent;
     border: 0;
@@ -64,7 +64,8 @@
 
   .mobile-app-nav > button.active,
   .mobile-app-nav > button:focus-visible,
-  .mobile-app-nav .mobile-profile-menu[open] > summary {
+  .mobile-app-nav .mobile-profile-menu[open] > summary,
+  .mobile-app-nav .mobile-global-actions-menu[open] > summary {
     background: var(--dark-blue-2);
     color: var(--orange);
   }
@@ -73,16 +74,19 @@
     opacity: 0.35;
   }
 
-  .mobile-profile-menu {
+  .mobile-profile-menu,
+  .mobile-global-actions-menu {
     min-width: 0;
     position: relative;
   }
 
-  .mobile-profile-menu > summary::-webkit-details-marker {
+  .mobile-profile-menu > summary::-webkit-details-marker,
+  .mobile-global-actions-menu > summary::-webkit-details-marker {
     display: none;
   }
 
-  .mobile-profile-popover {
+  .mobile-profile-popover,
+  .mobile-global-actions-popover {
     background: var(--dark-blue);
     border: 1px solid var(--border-soft);
     border-radius: 14px;
@@ -103,7 +107,8 @@
     padding: 0.55rem 0.7rem;
   }
 
-  .mobile-profile-popover button {
+  .mobile-profile-popover button,
+  .mobile-global-actions-popover button {
     align-items: center;
     background: transparent;
     border: 0;
@@ -118,17 +123,66 @@
   }
 
   .mobile-profile-popover button:hover,
-  .mobile-profile-popover button:focus-visible {
+  .mobile-profile-popover button:focus-visible,
+  .mobile-global-actions-popover button:hover,
+  .mobile-global-actions-popover button:focus-visible {
     background: var(--dark-blue-2);
   }
 
-  .mobile-profile-popover button:disabled {
+  .mobile-profile-popover button:disabled,
+  .mobile-global-actions-popover button:disabled {
     opacity: 0.45;
   }
 
-  /* The header still shows the current profile, but settings/logout live in the profile menu. */
-  .app-header .profile-actions > button {
+  /* Account details live in the Profile tab, not in the mobile page header. */
+  .app-header .profile-actions {
     display: none;
+  }
+
+  .app-header h2 {
+    display: none;
+  }
+
+  .app-header {
+    margin-bottom: 0.75rem;
+  }
+
+  .mobile-profile-name {
+    align-items: center;
+    display: flex;
+    gap: 0.6rem;
+  }
+
+  .mobile-profile-initials {
+    align-items: center;
+    background: var(--orange);
+    border-radius: 8px;
+    color: var(--orange-dark);
+    display: inline-flex;
+    font-weight: 800;
+    height: 32px;
+    justify-content: center;
+    min-width: 32px;
+  }
+
+  .mobile-global-actions-popover {
+    left: 50%;
+    max-width: calc(100vw - 2rem);
+    right: auto;
+    transform: translateX(-50%);
+    width: min(17rem, calc(100vw - 2rem));
+  }
+
+  .mobile-global-actions-popover .mobile-primary-action,
+  .mobile-global-actions-popover .mobile-save-action {
+    color: var(--orange-light);
+    font-weight: 800;
+  }
+
+  .mobile-menu-hint {
+    color: var(--light-gray);
+    margin: 0;
+    padding: 0.75rem;
   }
 
   /* Profile selection and creation */
@@ -241,12 +295,21 @@
     background: transparent;
     border: 0;
     box-shadow: none;
-    padding: 0 0 calc(12rem + env(safe-area-inset-bottom));
+    padding: 0 0 calc(6rem + env(safe-area-inset-bottom));
   }
 
   .entries-toolbar {
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
+    border-bottom: 0;
+    margin-bottom: 0.65rem;
+    padding-bottom: 0;
+  }
+
+  .entries-summary .description {
+    display: none;
+  }
+
+  .entries-summary .icon {
+    display: none;
   }
 
   .entries-toolbar .desktop-entry-actions {
@@ -254,7 +317,7 @@
   }
 
   .desktop-push-all {
-    display: flex;
+    display: none;
     margin-top: 1.25rem;
   }
 
@@ -348,8 +411,7 @@
   }
 
   .mobile-entry-dock {
-    bottom: calc(70px + env(safe-area-inset-bottom));
-    display: grid;
+    display: none;
     gap: 0.65rem;
     grid-template-columns: 1fr 1fr;
     z-index: 30;
@@ -381,74 +443,6 @@
   /* Entry commands have their own overflow menu, not a fixed button row. */
   .entry-editor-toolbar {
     display: none;
-  }
-
-  .mobile-editor-actions-menu {
-    display: block;
-    margin: 0 0 0.75rem auto;
-    position: relative;
-    width: max-content;
-    z-index: 35;
-  }
-
-  .mobile-editor-actions-menu summary {
-    align-items: center;
-    background: var(--dark-blue-2);
-    border: 1px solid var(--border-soft);
-    border-radius: 12px;
-    color: var(--soft-white);
-    display: flex;
-    gap: 0.55rem;
-    justify-content: center;
-    list-style: none;
-    min-height: 44px;
-    padding: 0.65rem 0.9rem;
-  }
-
-  .mobile-editor-actions-menu summary::-webkit-details-marker {
-    display: none;
-  }
-
-  .mobile-editor-popover {
-    background: var(--dark-blue);
-    border: 1px solid var(--border-soft);
-    border-radius: 14px;
-    box-shadow: 0 14px 30px rgb(0 0 0 / 40%);
-    display: grid;
-    gap: 0.25rem;
-    padding: 0.4rem;
-    position: absolute;
-    right: 0;
-    top: calc(100% + 0.4rem);
-    width: min(18rem, calc(100vw - 2rem));
-    z-index: 40;
-  }
-
-  .mobile-editor-popover button {
-    align-items: center;
-    background: transparent;
-    border: 0;
-    border-radius: 9px;
-    color: var(--soft-white);
-    display: flex;
-    gap: 0.85rem;
-    min-height: 48px;
-    padding: 0.65rem 0.8rem;
-    text-align: left;
-  }
-
-  .mobile-editor-popover button:hover,
-  .mobile-editor-popover button:focus-visible {
-    background: var(--dark-blue-2);
-  }
-
-  .mobile-editor-popover button:disabled {
-    opacity: 0.5;
-  }
-
-  .mobile-editor-popover .mobile-save-action {
-    color: var(--orange-light);
-    font-weight: 800;
   }
 
   .container.editor-container,

@@ -101,8 +101,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   // Recreate the uploads panel after a pull to load the replacement files
   let uploadsRefreshKey = $state(0);
   let entryInfoExpanded = $state(true);
-  let mobileActionsOpen = $state(false);
   let mobileProfileOpen = $state(false);
+  let mobileGlobalActionsOpen = $state(false);
 
   // Load the preferred editor from this profile's SQLite settings
   async function loadPreferences(): Promise<void> {
@@ -437,67 +437,81 @@ SPDX-License-Identifier: GPL-3.0-or-later
   <!-- Navigation appears only on phone-sized screens; the desktop header is unchanged. -->
   <nav class='mobile-app-nav' aria-label='Main navigation'>
     <button type='button' disabled={view === 'index'} aria-label='Back'
-      onclick={() => { mobileProfileOpen = false; mobileActionsOpen = false; if (view === 'profile') closeProfileSettings(); else void openIndex(); }}>
+      onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; if (view === 'profile') closeProfileSettings(); else void openIndex(); }}>
       <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg>
       <span>Back</span>
     </button>
     <button type='button' class:active={view === 'index'} aria-current={view === 'index' ? 'page' : undefined}
-      onclick={() => { mobileProfileOpen = false; mobileActionsOpen = false; void openIndex(); }}>
+      onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; void openIndex(); }}>
       <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z'/></svg>
       <span>Home</span>
     </button>
+    <details class='mobile-global-actions-menu' bind:open={mobileGlobalActionsOpen}>
+      <summary aria-label='Actions menu' onclick={() => mobileProfileOpen = false}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><circle cx='5' cy='12' r='1'/><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/></svg>
+        <span>Actions</span>
+      </summary>
+      <div class='mobile-global-actions-popover'>
+        {#if view === 'index'}
+          <button type='button' class='mobile-primary-action' disabled={!preferencesReady} onclick={() => { mobileGlobalActionsOpen = false; openEditor(); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg>
+            Create entry
+          </button>
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; showAlert(null); importModalOpen = true; }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v12m-5-5 5 5 5-5M5 20h14'/></svg>
+            Import from eLabFTW
+          </button>
+          <button type='button' disabled={entries.length === 0} onclick={() => { mobileGlobalActionsOpen = false; openPushModal('all'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 21V6m-5 5 5-5 5 5M5 3h14'/></svg>
+            Push all to eLabFTW
+          </button>
+        {:else if view === 'editor'}
+        <button class='mobile-save-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch} onclick={() => mobileGlobalActionsOpen = false}>
+          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
+          Save entry
+        </button>
+        {#if remoteLinks.length > 0}
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('open'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 3h7v7M10 14 21 3M21 13v7H3V3h7'/></svg>
+            Open in eLabFTW
+          </button>
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('pull'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v15m-5-5 5 5 5-5M5 21h14'/></svg>
+            Pull from eLabFTW
+          </button>
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('unlink'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m17 7 4-4M3 21l4-4M9 15l6-6M6 12l-1 1a4 4 0 0 0 6 6l1-1m0-12 1-1a4 4 0 0 1 6 6l-1 1'/></svg>
+            Unlink entry
+          </button>
+        {/if}
+        <button type='button' disabled={!currentEntryId} onclick={() => { mobileGlobalActionsOpen = false; openPushModal('single', currentEntryId); }}>
+          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 21V6m-5 5 5-5 5 5M5 3h14'/></svg>
+          Push to eLabFTW
+        </button>
+        {:else}
+          <p class='mobile-menu-hint'>Nothing to do here yet.</p>
+        {/if}
+      </div>
+    </details>
     <details class='mobile-profile-menu' bind:open={mobileProfileOpen}>
-      <summary aria-label='Profile menu' onclick={() => mobileActionsOpen = false}>
+      <summary aria-label='Profile menu' onclick={() => mobileGlobalActionsOpen = false}>
         <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8' r='4'/><path d='M4 21v-2a8 8 0 0 1 16 0v2'/></svg>
         <span>Profile</span>
       </summary>
       <div class='mobile-profile-popover'>
-        <p class='mobile-profile-name'>{profileName}</p>
+        <p class='mobile-profile-name'><span class='mobile-profile-initials'>{profileName.slice(0, 2).toUpperCase()}</span>{profileName}</p>
         <button type='button' disabled={!preferencesReady || view === 'profile'}
-          onclick={() => { mobileProfileOpen = false; mobileActionsOpen = false; openProfileSettings(); }}>
+          onclick={() => { mobileProfileOpen = false; openProfileSettings(); }}>
           <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06A1.7 1.7 0 0 0 16 18.4l-.3.12V21h-2.7v-2.48L12 18.4l-1 .12V21H8.3v-2.48l-.3-.12a1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 4.6 15L4.48 14H2v-2.7h2.48l.12-.3a1.7 1.7 0 0 0-.34-1.88L4.2 9.06l1.9-1.9.06.06A1.7 1.7 0 0 0 8 7.6l.3-.12V5H11v2.48l1 .12 1-.12V5h2.7v2.48l.3.12a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 19.4 11l.12.3H22V14h-2.48z'/></svg>
           Settings
         </button>
-        <button type='button' onclick={() => { mobileProfileOpen = false; mobileActionsOpen = false; void logout(); }}>
+        <button type='button' onclick={() => { mobileProfileOpen = false; void logout(); }}>
           <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 17l5-5-5-5m5 5H3m9-9h8v18h-8'/></svg>
           Logout
         </button>
       </div>
     </details>
   </nav>
-
-  {#if view === 'editor'}
-    <details class='mobile-editor-actions-menu' bind:open={mobileActionsOpen}>
-      <summary title='Entry actions' onclick={() => mobileProfileOpen = false}>
-        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='currentColor'><circle cx='5' cy='12' r='2'/><circle cx='12' cy='12' r='2'/><circle cx='19' cy='12' r='2'/></svg>
-        Entry actions
-      </summary>
-      <div class='mobile-editor-popover'>
-        <button class='mobile-save-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch} onclick={() => mobileActionsOpen = false}>
-          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
-          Save entry
-        </button>
-        {#if remoteLinks.length > 0}
-          <button type='button' onclick={() => { mobileActionsOpen = false; openRemoteModal('open'); }}>
-            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 3h7v7M10 14 21 3M21 13v7H3V3h7'/></svg>
-            Open in eLabFTW
-          </button>
-          <button type='button' onclick={() => { mobileActionsOpen = false; openRemoteModal('pull'); }}>
-            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v15m-5-5 5 5 5-5M5 21h14'/></svg>
-            Pull from eLabFTW
-          </button>
-          <button type='button' onclick={() => { mobileActionsOpen = false; openRemoteModal('unlink'); }}>
-            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m17 7 4-4M3 21l4-4M9 15l6-6M6 12l-1 1a4 4 0 0 0 6 6l1-1m0-12 1-1a4 4 0 0 1 6 6l-1 1'/></svg>
-            Unlink entry
-          </button>
-        {/if}
-        <button type='button' disabled={!currentEntryId} onclick={() => { mobileActionsOpen = false; openPushModal('single', currentEntryId); }}>
-          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 21V6m-5 5 5-5 5 5M5 3h14'/></svg>
-          Push to eLabFTW
-        </button>
-      </div>
-    </details>
-  {/if}
 
   {#if view === 'index'}
     <section class='panel entries-page' aria-labelledby='entries-title'>
