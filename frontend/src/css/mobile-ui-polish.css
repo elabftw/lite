@@ -1,0 +1,173 @@
+/* Shared entry browsing controls and desktop account menu. */
+.desktop-profile-menu {
+  position: relative;
+}
+
+.desktop-profile-menu > summary {
+  cursor: pointer;
+  gap: 0.6rem;
+  list-style: none;
+  min-height: 44px;
+  padding-right: 0.9rem;
+}
+
+.desktop-profile-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.desktop-profile-chevron {
+  color: var(--light-gray);
+  transition: transform 0.15s ease;
+}
+
+.desktop-profile-menu[open] .desktop-profile-chevron {
+  transform: rotate(180deg);
+}
+
+.desktop-profile-menu > summary:focus-visible {
+  box-shadow: var(--dark-blue-shadow);
+  outline: none;
+}
+
+.desktop-profile-popover {
+  background: var(--dark-blue);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  box-shadow: 0 14px 30px rgb(0 0 0 / 40%);
+  min-width: 180px;
+  padding: 0.35rem;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  z-index: 45;
+}
+
+.desktop-profile-popover button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  color: var(--soft-white);
+  cursor: pointer;
+  display: flex;
+  gap: 0.7rem;
+  min-height: 44px;
+  padding: 0.6rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.desktop-profile-popover button:hover,
+.desktop-profile-popover button:focus-visible {
+  background: var(--dark-blue-2);
+}
+
+.desktop-profile-popover button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Keep search / filters / sorting available on desktop as well as mobile. */
+.entries-page .mobile-entry-controls {
+  display: grid;
+  gap: 0.8rem;
+  margin-bottom: 0.85rem;
+}
+
+.entries-page .mobile-entry-search {
+  align-items: center;
+  background: var(--surface-dark-soft);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  color: var(--light-gray);
+  display: flex;
+  gap: 0.75rem;
+  padding: 0 0.9rem;
+}
+
+.entries-page .mobile-entry-search input {
+  background: transparent;
+  border: 0;
+  color: var(--soft-white);
+  font: inherit;
+  min-height: 48px;
+  min-width: 0;
+  outline: none;
+  width: 100%;
+}
+
+.entries-page .mobile-entry-search:focus-within {
+  border-color: var(--orange-hover);
+}
+
+.entries-page .mobile-entry-filters {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.25rem;
+}
+
+.entries-page .mobile-entry-filters button {
+  background: var(--dark-blue-2);
+  border: 1px solid var(--border-soft);
+  border-radius: 12px;
+  color: var(--soft-white);
+  cursor: pointer;
+  flex-shrink: 0;
+  font: inherit;
+  min-height: 44px;
+  padding: 0.45rem 0.85rem;
+}
+
+.entries-page .mobile-entry-filters button.active {
+  background: var(--orange);
+  border-color: var(--orange);
+  color: var(--orange-dark);
+  font-weight: 800;
+}
+
+.entries-page .mobile-entry-filters button:focus-visible {
+  outline: 2px solid var(--orange-light);
+  outline-offset: 2px;
+}
+
+.entries-page .mobile-entry-sort {
+  align-items: center;
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.entries-page .mobile-entry-sort label {
+  color: var(--light-gray);
+  font-size: 0.8rem;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.entries-page .mobile-entry-sort select.input {
+  font-size: 0.9rem;
+  margin: 0;
+  max-width: 165px;
+  min-height: 44px;
+}
+
+.entries-page .entries-toolbar {
+  border-bottom: 0;
+  margin-bottom: 0.8rem;
+  padding-bottom: 0;
+}
+
+@media (width <= 720px) {
+  /* Navigation and actions are exclusively in the bottom tab bar. */
+  .entry-editor-toolbar,
+  .entries-page .entries-toolbar,
+  .entries-page .desktop-push-all {
+    display: none !important;
+  }
+
+  /* The list begins with search instead of a redundant section heading. */
+  .entries-page .mobile-entry-controls {
+    margin-bottom: 0.75rem;
+  }
+}

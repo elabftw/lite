@@ -102,6 +102,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let uploadsRefreshKey = $state(0);
   let entryInfoExpanded = $state(true);
   let mobileProfileOpen = $state(false);
+  let desktopProfileOpen = $state(false);
   let mobileGlobalActionsOpen = $state(false);
 
   // Load the preferred editor from this profile's SQLite settings
@@ -396,7 +397,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <div class='w-100 text-ellipsis'>
       {#if view === 'index'}
         <h1>My Entries</h1>
-        <h2>Manage your saved entries.</h2>
       {:else if view === 'editor'}
         <div class='flex items-center gap-1'>
           {#if linkedEntityType}
@@ -414,22 +414,24 @@ SPDX-License-Identifier: GPL-3.0-or-later
     </div>
 
     <div class='profile-actions flex gap-1 items-center'>
-      <div class='profile-pill flex items-center' title={profileName}>
-        <span class='profile-avatar'>{profileName.slice(0, 2).toUpperCase()}</span>
-        <span class='text-strong'>{profileName}</span>
-      </div>
-
-      <button
-        class='btn btn-secondary'
-        type='button'
-        onclick={openProfileSettings}
-        disabled={!preferencesReady || view === 'profile'}
-        aria-label='Profile settings'
-        title='Profile settings'
-      >
-        <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.5 2h3l.55 2.6c.63.18 1.24.43 1.8.75l2.23-1.5 2.13 2.13-1.5 2.23c.32.56.57 1.17.75 1.8L22 10.5v3l-2.6.55a8 8 0 0 1-.75 1.8l1.5 2.23-2.13 2.13-2.23-1.5a8 8 0 0 1-1.8.75L13.5 22h-3l-.55-2.6a8 8 0 0 1-1.8-.75l-2.23 1.5-2.13-2.13 1.5-2.23a8 8 0 0 1-.75-1.8L2 13.5v-3l2.6-.55c.18-.63.43-1.24.75-1.8l-1.5-2.23 2.13-2.13 2.23 1.5c.56-.32 1.17-.57 1.8-.75z'/><circle cx='12' cy='12' r='3'/></svg>
-      </button>
-      <button class='btn btn-danger' onclick={logout}>Logout</button>
+      <details class='desktop-profile-menu' bind:open={desktopProfileOpen}>
+        <summary class='profile-pill flex items-center' aria-label={`Profile menu for ${profileName}`}>
+          <span class='profile-avatar'>{profileName.slice(0, 2).toUpperCase()}</span>
+          <span class='text-strong'>{profileName}</span>
+          <svg class='desktop-profile-chevron' aria-hidden='true' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>
+        </summary>
+        <div class='desktop-profile-popover'>
+          <button type='button' disabled={!preferencesReady || view === 'profile'}
+            onclick={() => { desktopProfileOpen = false; openProfileSettings(); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06A1.7 1.7 0 0 0 16 18.4l-.3.12V21h-2.7v-2.48L12 18.4l-1 .12V21H8.3v-2.48l-.3-.12a1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 4.6 15L4.48 14H2v-2.7h2.48l.12-.3a1.7 1.7 0 0 0-.34-1.88L4.2 9.06l1.9-1.9.06.06A1.7 1.7 0 0 0 8 7.6l.3-.12V5H11v2.48l1 .12 1-.12V5h2.7v2.48l.3.12a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 19.4 11l.12.3H22V14h-2.48z'/></svg>
+            Settings
+          </button>
+          <button type='button' onclick={() => { desktopProfileOpen = false; void logout(); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M10 17l5-5-5-5m5 5H3m9-9h8v18h-8'/></svg>
+            Logout
+          </button>
+        </div>
+      </details>
     </div>
   </header>
 
@@ -514,27 +516,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   </nav>
 
   {#if view === 'index'}
-    <section class='panel entries-page' aria-labelledby='entries-title'>
-      <div class='entries-toolbar flex justify-between items-center mb-2 border-bottom'>
-        <div class='entries-summary flex items-center gap-1'>
-          <div class='icon' aria-hidden='true'>&#x2756;</div>
-          <div>
-            <h3 id='entries-title'>Saved entries</h3>
-            <span class='description'>
-              {entries.length === 1 ? '1 entry' : `${entries.length} entries`}
-            </span>
-          </div>
-        </div>
-        <div class='entries-actions desktop-entry-actions flex gap-1'>
-          <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
-            <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
-            <span class='entry-action-label'>Import from eLabFTW</span>
-            <span class='mobile-import-label'>Import</span>
-          </button>
-          <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
-        </div>
-      </div>
-
+    <section class='panel entries-page' aria-label='Entries'>
       <div class='mobile-entry-controls'>
         <label class='mobile-entry-search'>
           <svg aria-hidden='true' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/></svg>
@@ -555,6 +537,17 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <option value='title-asc'>Title A-Z</option>
             <option value='title-desc'>Title Z-A</option>
           </select>
+        </div>
+      </div>
+
+      <div class='entries-toolbar flex justify-end mb-2'>
+        <div class='entries-actions desktop-entry-actions flex gap-1'>
+          <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
+            <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
+            <span class='entry-action-label'>Import from eLabFTW</span>
+            <span class='mobile-import-label'>Import</span>
+          </button>
+          <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
         </div>
       </div>
 

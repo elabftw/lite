@@ -7,6 +7,7 @@
 @import url('uploads.css');
 @import url('entry-editor.css');
 @import url('mobile-first.css');
+@import url('mobile-ui-polish.css');
 
 /* TODO: add stylelint */
 :root {
