@@ -163,12 +163,12 @@ jobs:
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: wails3 task android:package
+        run: wails3 task android:package:fat
 
       - name: Prepare release asset
         run: |
           mkdir -p release
-          cp bin/elabftw-lite.apk release/elabftw-lite-android-arm64.apk
+          cp bin/elabftw-lite.apk release/elabftw-lite-android.apk
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
