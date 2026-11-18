@@ -94,6 +94,8 @@ tasks:
             ref: .OBFUSCATED
           GOOS:
             ref: .GOOS
+          GOARCH:
+            ref: .GOARCH
           CGO_ENABLED:
             ref: .CGO_ENABLED
     cmds:
@@ -195,6 +197,7 @@ tasks:
       - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i
     env:
       GOOS: '{{.GOOS | default OS}}'
+      GOARCH: '{{.GOARCH | default ARCH}}'
       CGO_ENABLED: '{{.CGO_ENABLED | default ""}}'
 
   generate:icons:

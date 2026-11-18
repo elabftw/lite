@@ -47,6 +47,7 @@ tasks:
           PRODUCTION:
             ref: .PRODUCTION
           GOOS: android
+          GOARCH: arm64
           CGO_ENABLED: "0"
     cmds:
       - echo "Building Android app {{.APP_NAME}}..."
