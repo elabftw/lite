@@ -12,14 +12,10 @@ package main
 
 import (
 	"embed"
+	"log"
 	"runtime"
 
-	"github.com/wailsapp/wails/v2"
-	"github.com/wailsapp/wails/v2/pkg/menu"
-	"github.com/wailsapp/wails/v2/pkg/menu/keys"
-	"github.com/wailsapp/wails/v2/pkg/options"
-	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
-	rt "github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 //go:embed all:frontend/dist
@@ -28,78 +24,70 @@ var assets embed.FS
 var AppVersion = "dev"
 
 func main() {
-	// Create an instance of the app structure
 	app := NewApp()
-	appMenu := menu.NewMenu()
-	about := func() {
-		_, _ = rt.MessageDialog(app.ctx, rt.MessageDialogOptions{
-			Type:    rt.InfoDialog,
-			Title:   "About eLabFTW lite",
-			Message: "Version: " + AppVersion + "\n\nLocal-first eLabFTW lite client." + "\nDevelopment sponsored by CNRS.",
-			Buttons: []string{"OK"},
-		})
-	}
 
-	// full screen
-	toggleFullscreen := func() {
-		if rt.WindowIsFullscreen(app.ctx) {
-			rt.WindowUnfullscreen(app.ctx)
-			return
-		}
-		rt.WindowFullscreen(app.ctx)
-	}
-
-	if runtime.GOOS == "darwin" {
-		appSubmenu := appMenu.AddSubmenu("eLabFTW lite")
-		appSubmenu.AddText("About...", nil, func(_ *menu.CallbackData) {
-			about()
-		})
-		appSubmenu.AddSeparator()
-		appSubmenu.AddText("Quit", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {
-			rt.Quit(app.ctx)
-		})
-
-		appMenu.Append(menu.EditMenu())
-
-		// toggle full screen
-		viewMenu := appMenu.AddSubmenu("View")
-		viewMenu.AddText("Toggle Full Screen", keys.Combo("f", keys.CmdOrCtrlKey, keys.ControlKey), func(_ *menu.CallbackData) {
-			toggleFullscreen()
-		})
-	} else {
-		fileMenu := appMenu.AddSubmenu("File")
-		fileMenu.AddText("Quit", keys.CmdOrCtrl("q"), func(_ *menu.CallbackData) {
-			rt.Quit(app.ctx)
-		})
-
-		viewMenu := appMenu.AddSubmenu("View")
-		viewMenu.AddText("Toggle Full Screen", keys.Key("F11"), func(_ *menu.CallbackData) {
-			toggleFullscreen()
-		})
-
-		helpMenu := appMenu.AddSubmenu("Help")
-		helpMenu.AddText("About...", nil, func(_ *menu.CallbackData) {
-			about()
-		})
-	}
-
-	// Create application with options
-	err := wails.Run(&options.App{
-		Title:  "elabftw-lite",
-		Width:  1200,
-		Height: 900,
-		AssetServer: &assetserver.Options{
-			Assets: assets,
+	wailsApp := application.New(application.Options{
+		Name:        "elabftw-lite",
+		Description: "Local-first eLabFTW lite client",
+		Services: []application.Service{
+			application.NewService(app),
 		},
-		BackgroundColour: &options.RGBA{R: 27, G: 38, B: 54, A: 1},
-		OnStartup:        app.startup,
-		Menu:             appMenu,
-		Bind: []interface{}{
-			app,
+		Assets: application.AssetOptions{
+			Handler: application.AssetFileServerFS(assets),
 		},
+		Mac: application.MacOptions{
+			ApplicationShouldTerminateAfterLastWindowClosed: true,
+		},
+		// Go signal handlers crash the app on iOS
+		DisableDefaultSignalHandler: runtime.GOOS == "ios",
 	})
 
-	if err != nil {
-		println("Error:", err.Error())
+	about := func() {
+		wailsApp.Dialog.Info().
+			SetTitle("About eLabFTW lite").
+			SetMessage("Version: " + AppVersion + "\n\nLocal-first eLabFTW lite client.\nDevelopment sponsored by CNRS.").
+			Show()
+	}
+
+	toggleFullscreen := func() {
+		if w := wailsApp.Window.Current(); w != nil {
+			w.ToggleFullscreen()
+		}
+	}
+
+	appMenu := wailsApp.NewMenu()
+	if runtime.GOOS == "darwin" {
+		appSubmenu := appMenu.AddSubmenu("eLabFTW lite")
+		appSubmenu.Add("About...").OnClick(func(*application.Context) { about() })
+		appSubmenu.AddSeparator()
+		appSubmenu.Add("Quit").SetAccelerator("CmdOrCtrl+q").OnClick(func(*application.Context) { wailsApp.Quit() })
+
+		appMenu.AddRole(application.EditMenu)
+
+		viewMenu := appMenu.AddSubmenu("View")
+		viewMenu.Add("Toggle Full Screen").SetAccelerator("CmdOrCtrl+Ctrl+f").OnClick(func(*application.Context) { toggleFullscreen() })
+	} else {
+		fileMenu := appMenu.AddSubmenu("File")
+		fileMenu.Add("Quit").SetAccelerator("CmdOrCtrl+q").OnClick(func(*application.Context) { wailsApp.Quit() })
+
+		viewMenu := appMenu.AddSubmenu("View")
+		viewMenu.Add("Toggle Full Screen").SetAccelerator("F11").OnClick(func(*application.Context) { toggleFullscreen() })
+
+		helpMenu := appMenu.AddSubmenu("Help")
+		helpMenu.Add("About...").OnClick(func(*application.Context) { about() })
+	}
+	wailsApp.Menu.Set(appMenu)
+
+	wailsApp.Window.NewWithOptions(application.WebviewWindowOptions{
+		Title:              "elabftw-lite",
+		Width:              1200,
+		Height:             900,
+		BackgroundColour:   application.NewRGB(27, 38, 54),
+		URL:                "/",
+		UseApplicationMenu: true,
+	})
+
+	if err := wailsApp.Run(); err != nil {
+		log.Fatal(err)
 	}
 }

@@ -7,7 +7,7 @@ This file is part of eLabFTW Desktop.
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 <script lang='ts'>
-  import type { main } from '../../../wailsjs/go/models';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import Modal from '../Modal.svelte';
 
   type Props = {
@@ -20,8 +20,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
   };
 
   let {links, mode, onClose, onOpen, onPull, onUnlink}: Props = $props();
-  let selectedIndex = $state(links.length === 1 ? 0 : -1);
-  let selectedLink = $derived(links[selectedIndex] ?? null);
+  let selectedIndex = $state(-1);
+  let selectedLink = $derived(links[links.length === 1 ? 0 : selectedIndex] ?? null);
   let working = $state(false);
 
   async function confirmAction(): Promise<void> {

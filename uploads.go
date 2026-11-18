@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type StoredUpload struct {
@@ -60,6 +60,8 @@ func (a *App) ImportUpload(profileUUID string, entryID int64, sourcePath string)
 	if sourcePath == "" {
 		return nil, fmt.Errorf("Source path is empty")
 	}
+	// On mobile the picked file is a plaintext copy in the sandbox: always remove it
+	defer discardPickedFile(sourcePath)
 
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -218,9 +220,15 @@ func (a *App) ListEntryUploads(profileUUID string, entryID int64) ([]StoredUploa
 }
 
 func (a *App) SelectFile() (string, error) {
-	return runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
-		Title: "Select file",
-	})
+	path, err := application.Get().Dialog.OpenFile().
+		SetTitle("Select file").
+		CanChooseFiles(true).
+		PromptForSingleSelection()
+	if err != nil {
+		return "", err
+	}
+	rememberPickedFile(path)
+	return path, nil
 }
 
 // getUploadFromDB fetches one upload and ensures that it belongs to the expected entry
@@ -317,13 +325,15 @@ func (a *App) DownloadUpload(
 	}
 	defer zeroBytes(plaintext)
 
-	destinationPath, err := runtime.SaveFileDialog(
-		a.ctx,
-		runtime.SaveDialogOptions{
-			Title:           "Save upload",
-			DefaultFilename: upload.RealName,
-		},
-	)
+	// iOS and Android have no save dialog: hand the file to the share sheet instead
+	if isMobile() {
+		return shareDecryptedFile(upload.RealName, plaintext)
+	}
+
+	destinationPath, err := application.Get().Dialog.SaveFile().
+		SetMessage("Save upload").
+		SetFilename(upload.RealName).
+		PromptForSingleSelection()
 	if err != nil {
 		return "", fmt.Errorf("select destination: %w", err)
 	}

@@ -59,6 +59,8 @@
   gap: 1rem;
   justify-content: space-between;
   left: 1rem;
+  max-width: min(560px, calc(100vw - 2rem));
+  overflow-wrap: anywhere;
   position: fixed;
   top: 1rem;
   z-index: 9999;

@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import type { main } from '../../../wailsjs/go/models';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import ProfileSelectorUnlockForm from './ProfileSelectorUnlockForm.svelte';
 
   type Props = {
@@ -37,14 +37,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 </script>
 
-<section>
+<section class='profile-list-page'>
   <p class='header-subtitle'>Welcome back</p>
-  <header class='flex justify-between items-center mb-2'>
+  <header class='profile-list-header flex justify-between items-center mb-2'>
     <div>
       <h1>Select a profile</h1>
       <h2>Choose a profile to unlock your saved entries.</h2>
     </div>
-    <button class='btn btn-primary flex-auto' onclick={openAddProfile}>
+    <button class='btn btn-primary flex-auto profile-list-add' onclick={openAddProfile}>
       <span aria-hidden='true'>+</span>Add profile
     </button>
   </header>
@@ -97,9 +97,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <div class='icon-sm' aria-hidden='true'>+</div>
         <h3>No profiles yet</h3>
         <p>Create a profile to start saving entries.</p>
-        <button class='btn btn-primary' onclick={openAddProfile}>
-          Create your first profile
-        </button>
       </div>
     {/if}
   </section>
