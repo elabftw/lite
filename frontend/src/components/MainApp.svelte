@@ -868,7 +868,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         </div>
 
         <div class='mt-2 mb-1'>
-          <label id='entryMainTextLabel'>Content</label>
+          <span id='entryMainTextLabel' class='text-strong'>Content</span>
         </div>
         {#if editorFormatMismatch}
           <div class='grid gap-1 mb-2'>
