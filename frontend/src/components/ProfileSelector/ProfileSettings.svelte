@@ -23,9 +23,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   };
 
   let {profileUuid, preferredEditor, onBack, onSaved}: Props = $props();
-  let selectedEditor = $state<PreferredEditor>('tinymce');
-
-  $effect(() => { selectedEditor = preferredEditor; });
+  let selectedEditor = $derived(preferredEditor);
   let saving = $state(false);
 
   async function savePreference(): Promise<void> {
