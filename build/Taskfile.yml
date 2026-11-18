@@ -92,6 +92,10 @@ tasks:
             ref: .BUILD_FLAGS
           OBFUSCATED:
             ref: .OBFUSCATED
+          GOOS:
+            ref: .GOOS
+          CGO_ENABLED:
+            ref: .CGO_ENABLED
     cmds:
       - task: frontend:run
         vars:
@@ -189,6 +193,9 @@ tasks:
       - frontend/bindings/**/*
     cmds:
       - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i
+    env:
+      GOOS: '{{.GOOS | default OS}}'
+      CGO_ENABLED: '{{.CGO_ENABLED | default ""}}'
 
   generate:icons:
     summary: Generates Windows `.ico` and Mac `.icns` from an image; on macOS, `-iconcomposerinput appicon.icon -macassetdir darwin` also produces `Assets.car` from a `.icon` file (skipped on other platforms).
