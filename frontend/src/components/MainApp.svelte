@@ -315,12 +315,24 @@ SPDX-License-Identifier: GPL-3.0-or-later
     void loadPreferences();
 
     const updateConnectivity = () => { online = navigator.onLine; };
+    // TinyMCE keeps its iframe focused after iOS dismisses the keyboard. Track
+    // the actual available viewport height rather than focus on a touch device.
+    let fullViewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    let viewportWidth = window.visualViewport?.width ?? window.innerWidth;
     const updateKeyboard = () => {
       const viewport = window.visualViewport;
-      const active = document.activeElement;
-      const editing = active?.matches('input, textarea, select, iframe, [contenteditable="true"]');
+      const height = viewport?.height ?? window.innerHeight;
+      const width = viewport?.width ?? window.innerWidth;
+      // Recalibrate after an orientation change; support Android WebViews that
+      // resize the layout viewport as well as iOS visual-viewport resizing.
+      if (Math.abs(width - viewportWidth) > 80) {
+        viewportWidth = width;
+        fullViewportHeight = height;
+      }
+      fullViewportHeight = Math.max(fullViewportHeight, height);
+      const editing = document.activeElement?.matches('input, textarea, select, iframe, [contenteditable="true"]');
       keyboardVisible = Boolean(window.matchMedia('(max-width: 720px)').matches && editing &&
-        (navigator.maxTouchPoints > 0 || (viewport && window.innerHeight - viewport.height > 140)));
+        fullViewportHeight - height > 140);
     };
     const updateKeyboardAfterBlur = () => { window.requestAnimationFrame(updateKeyboard); };
     let touchStart: {x: number; y: number} | null = null;
@@ -376,6 +388,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
     window.addEventListener('focusin', updateKeyboard);
     window.addEventListener('focusout', updateKeyboardAfterBlur);
     window.visualViewport?.addEventListener('resize', updateKeyboard);
+    window.visualViewport?.addEventListener('scroll', updateKeyboard);
+    window.addEventListener('resize', updateKeyboard);
     window.addEventListener('touchstart', touchBegin, {passive: true});
     window.addEventListener('touchend', touchEnd, {passive: true});
 
@@ -387,6 +401,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
       window.removeEventListener('focusin', updateKeyboard);
       window.removeEventListener('focusout', updateKeyboardAfterBlur);
       window.visualViewport?.removeEventListener('resize', updateKeyboard);
+      window.visualViewport?.removeEventListener('scroll', updateKeyboard);
+      window.removeEventListener('resize', updateKeyboard);
       window.removeEventListener('touchstart', touchBegin);
       window.removeEventListener('touchend', touchEnd);
     };
