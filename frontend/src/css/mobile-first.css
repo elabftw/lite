@@ -249,6 +249,11 @@
     width: auto;
   }
 
+  /* with the keyboard open the floating button would sit on top of the field */
+  .profile-shell:has(input:focus) .profile-list-add {
+    display: none;
+  }
+
   .profile-create {
     background: transparent;
     border: 0;

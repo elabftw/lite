@@ -100,16 +100,21 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        // Android 15+ draws edge-to-edge when targeting API 35+.
-        // Apply only system-bar/cutout insets here; keep IME insets for the WebView.
+        // Android 15+ draws edge-to-edge when targeting API 35+, and adjustResize
+        // no longer shrinks the window for the keyboard. Pad the container with the
+        // system bars and the keyboard (IME) so the WebView resizes above it, and
+        // Chromium scrolls the focused field into view like a regular browser.
         if (Build.VERSION.SDK_INT >= 35) {
             View container = findViewById(R.id.main_container);
             ViewCompat.setOnApplyWindowInsetsListener(container, (view, insets) -> {
                 int types = WindowInsetsCompat.Type.systemBars() | WindowInsetsCompat.Type.displayCutout();
+                int ime = WindowInsetsCompat.Type.ime();
                 Insets bars = insets.getInsets(types);
-                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                int bottom = Math.max(bars.bottom, insets.getInsets(ime).bottom);
+                view.setPadding(bars.left, bars.top, bars.right, bottom);
                 return new WindowInsetsCompat.Builder(insets)
                         .setInsets(types, Insets.NONE)
+                        .setInsets(ime, Insets.NONE)
                         .build();
             });
             ViewCompat.requestApplyInsets(container);
