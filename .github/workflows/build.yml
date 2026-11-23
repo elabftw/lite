@@ -4,153 +4,147 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
   workflow_dispatch:
+  # called by release.yml with release: true
+  workflow_call:
+    inputs:
+      release:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  desktop:
     strategy:
       fail-fast: false
       matrix:
         include:
-          # Linux
-          - name: linux-amd64
-            runs_on: ubuntu-24.04
-          - name: linux-arm64
-            runs_on: ubuntu-24.04-arm
-
-          # macOS
-          - name: macos-arm64
-            runs_on: macos-15
-          - name: macos-amd64
-            runs_on: macos-15-intel
-
-          # Windows
-          - name: windows-amd64
-            runs_on: windows-latest
-          - name: windows-arm64
-            runs_on: windows-11-arm
+          - { name: linux-amd64, runs_on: ubuntu-24.04 }
+          - { name: linux-arm64, runs_on: ubuntu-24.04-arm }
+          - { name: macos-arm64, runs_on: macos-15 }
+          - { name: macos-amd64, runs_on: macos-15-intel }
+          - { name: windows-amd64, runs_on: windows-latest }
+          - { name: windows-arm64, runs_on: windows-11-arm }
 
     runs-on: ${{ matrix.runs_on }}
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: ./.github/actions/setup
         with:
-          go-version-file: go.mod
-          cache: true
+          cache: ${{ !inputs.release }}
 
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-
-      - name: Build (Wails)
+      - name: Build
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p dist
           # macOS needs the .app bundle, other platforms ship the plain binary
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            wails3 package
-          else
-            wails3 build
-          fi
+          case "$RUNNER_OS" in
+            macOS)
+              wails3 package
+              ditto -c -k --sequesterRsrc --keepParent bin/elabftw-lite.app "dist/elabftw-lite-${{ matrix.name }}.zip"
+              ;;
+            Windows)
+              wails3 build
+              cp bin/elabftw-lite.exe "dist/elabftw-lite-${{ matrix.name }}.exe"
+              ;;
+            Linux)
+              wails3 build
+              cp bin/elabftw-lite "dist/elabftw-lite-${{ matrix.name }}"
+              ;;
+          esac
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{ matrix.name }}
-          path: bin/**
+          path: dist/*
           if-no-files-found: error
 
   android:
     runs-on: ubuntu-24.04
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: go.mod
-          cache: true
-
-      - name: Setup Java
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
+      - uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
         with:
           distribution: temurin
           java-version: 21
 
-      - name: Install Linux dependencies
+      - uses: ./.github/actions/setup
+        with:
+          cache: ${{ !inputs.release }}
+
+      - name: Configure release signing
+        # outside of releases the APK is signed with the debug keystore
+        if: inputs.release
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev
+          set -euo pipefail
+          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Missing Android release signing secret: $variable"
+              exit 1
+            fi
+          done
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-release.keystore"
+          test -s "$RUNNER_TEMP/android-release.keystore"
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-
-      - name: Build (Android)
+      - name: Build
         # uses the NDK preinstalled on the runner (ANDROID_NDK_HOME)
-        # APK is signed with the debug keystore unless ANDROID_KEYSTORE_FILE is set
-        run: wails3 task android:package:fat
+        # an empty ANDROID_KEYSTORE_FILE means debug signing (see app/build.gradle)
+        env:
+          ANDROID_KEYSTORE_FILE: ${{ inputs.release && format('{0}/android-release.keystore', runner.temp) || '' }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          wails3 task android:package:fat
+          mkdir -p dist
+          cp bin/elabftw-lite.apk dist/elabftw-lite-android.apk
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android
-          path: bin/elabftw-lite.apk
+          path: dist/*
           if-no-files-found: error
 
   ios:
     runs-on: macos-15
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          fetch-depth: 0
 
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
+      - uses: ./.github/actions/setup
         with:
-          go-version-file: go.mod
-          cache: true
+          cache: ${{ !inputs.release }}
 
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-
-      - name: Build (iOS simulator)
-        # device builds/IPA require an Apple signing identity:
+      - name: Build (simulator)
+        # zipped .app can be run in the Xcode simulator or uploaded to appetize.io
+        # device builds/IPA need an Apple signing identity:
         # wails3 task ios:package:ipa IOS_PLATFORM=device CODESIGN_IDENTITY="..."
-        run: wails3 task ios:package
+        run: |
+          wails3 task ios:package
+          mkdir -p dist
+          ditto -c -k --sequesterRsrc --keepParent bin/elabftw-lite.app dist/elabftw-lite-ios-simulator.zip
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ios-simulator
-          path: bin/elabftw-lite.app/**
+          path: dist/*
           if-no-files-found: error

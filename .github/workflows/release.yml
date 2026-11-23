@@ -5,183 +5,30 @@ on:
     types: [published]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          # Linux
-          - name: linux-amd64
-            runs_on: ubuntu-24.04
-          - name: linux-arm64
-            runs_on: ubuntu-24.04-arm
+    uses: ./.github/workflows/build.yml
+    with:
+      release: true
+    secrets: inherit
 
-          # macOS
-          - name: macos-arm64
-            runs_on: macos-15
-          - name: macos-amd64
-            runs_on: macos-15-intel
-
-          # Windows
-          - name: windows-amd64
-            runs_on: windows-latest
-          - name: windows-arm64
-            runs_on: windows-11-arm
-
-    runs-on: ${{ matrix.runs_on }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: go.mod
-          cache: false
-
-      - name: Install Linux dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-
-      - name: Build (Wails)
-        shell: bash
-        run: |
-          set -euo pipefail
-          # macOS needs the .app bundle, other platforms ship the plain binary
-          if [ "$RUNNER_OS" = "macOS" ]; then
-            wails3 package
-          else
-            wails3 build
-          fi
-
-      - name: Prepare release asset
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p release
-          case '${{ runner.os }}' in
-            Linux)
-              cp bin/elabftw-lite 'release/elabftw-lite-${{ matrix.name }}'
-              ;;
-            Windows)
-              cp bin/elabftw-lite.exe 'release/elabftw-lite-${{ matrix.name }}.exe'
-              ;;
-            macOS)
-              ditto -c -k --sequesterRsrc --keepParent bin/elabftw-lite.app 'release/elabftw-lite-${{ matrix.name }}.zip'
-              ;;
-          esac
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: ${{ matrix.name }}
-          path: bin/**
-          if-no-files-found: error
-
-      - name: Upload release asset
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
-          REPOSITORY: ${{ github.repository }}
-        run: |
-          gh release upload "$RELEASE_TAG" release/* --clobber --repo "$REPOSITORY"
-
-  android:
+  publish:
+    needs: build
     runs-on: ubuntu-24.04
+    permissions:
+      contents: write
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
-          persist-credentials: false
-          fetch-depth: 0
+          path: release
+          merge-multiple: true
 
-      - name: Setup Go
-        uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c # v6.4.0
-        with:
-          go-version-file: go.mod
-          cache: false
-
-      - name: Setup Java
-        uses: actions/setup-java@77dd5b2ce225ea11469928ac317850245a74ae78 # v6.2.0
-        with:
-          distribution: temurin
-          java-version: 21
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            pkg-config \
-            libgtk-4-dev \
-            libwebkitgtk-6.0-dev
-
-      - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
-
-      - name: Configure Android release signing
-        shell: bash
-        env:
-          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          for variable in ANDROID_KEYSTORE_BASE64 ANDROID_KEYSTORE_PASSWORD ANDROID_KEY_ALIAS ANDROID_KEY_PASSWORD; do
-            if [ -z "${!variable}" ]; then
-              echo "::error::Missing Android release signing secret: $variable"
-              exit 1
-            fi
-          done
-          umask 077
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/android-release.keystore"
-          test -s "$RUNNER_TEMP/android-release.keystore"
-
-      - name: Build (Android)
-        # Uses the NDK preinstalled on the runner (ANDROID_NDK_HOME).
-        env:
-          ANDROID_KEYSTORE_FILE: ${{ runner.temp }}/android-release.keystore
-          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-        run: wails3 task android:package:fat
-
-      - name: Prepare release asset
-        run: |
-          mkdir -p release
-          cp bin/elabftw-lite.apk release/elabftw-lite-android.apk
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: android
-          path: bin/elabftw-lite.apk
-          if-no-files-found: error
-
-      - name: Upload release asset
-        shell: bash
+      - name: Upload release assets
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ github.event.release.tag_name }}
           REPOSITORY: ${{ github.repository }}
-        run: |
-          gh release upload "$RELEASE_TAG" release/* --clobber --repo "$REPOSITORY"
+        run: gh release upload "$RELEASE_TAG" release/* --clobber --repo "$REPOSITORY"
