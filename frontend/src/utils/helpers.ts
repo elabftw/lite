@@ -1,5 +1,5 @@
 import type { Attachment } from 'svelte/attachments';
-import { Browser } from "@wailsio/runtime";
+import { OpenExternalURL } from '../../bindings/elabftw-lite/app';
 
 /*
  * Focuses the targeted element when it is mounted.
@@ -33,7 +33,7 @@ export function preventDefaultSubmit(
 /* opens a url in the preferred browser */
 export function openExternalURL(url: string): void {
   if (!url) return;
-  Browser.OpenURL(url);
+  void OpenExternalURL(url).catch(console.error);
 }
 
 /* Formats a timestamp relative to now without a date library. */

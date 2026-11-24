@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -34,6 +35,26 @@ type App struct {
 // NewApp creates a new App application struct
 func NewApp() *App {
 	return &App{}
+}
+
+// OpenExternalURL opens an HTTP(S) link in the system browser.
+func (a *App) OpenExternalURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Hostname() == "" ||
+		(u.Scheme != "https" && u.Scheme != "http") {
+		return fmt.Errorf("Invalid external URL")
+	}
+
+	sanitizedURL, err := application.ValidateAndSanitizeURL(u.String())
+	if err != nil {
+		return err
+	}
+	if isMobile() {
+		application.Mobile.OpenURL(sanitizedURL)
+		return nil
+	}
+
+	return application.Get().Browser.OpenURL(sanitizedURL)
 }
 
 // ServiceStartup is called by Wails when the application starts.

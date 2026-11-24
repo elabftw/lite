@@ -130,6 +130,13 @@ export function LockProfile(): $CancellablePromise<void> {
 }
 
 /**
+ * OpenExternalURL opens an HTTP(S) link in the system browser.
+ */
+export function OpenExternalURL(rawURL: string): $CancellablePromise<void> {
+    return $Call.ByID(3362740399, rawURL);
+}
+
+/**
  * overwrite a linked local entry with the selected remote version
  * Prepare encrypted files first, then update the entry and its uploads together
  * with readonly for tags, links and custom fields
