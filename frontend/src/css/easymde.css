@@ -42,6 +42,7 @@
 .editor-preview,
 .editor-preview-side {
   --text: var(--dark-blue);
+
   color: var(--dark-blue);
 }
 
