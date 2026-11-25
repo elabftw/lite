@@ -9,7 +9,8 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import { SetPreferredEditor } from '../../../bindings/elabftw-lite/app';
+  import { onMount } from 'svelte';
+  import { GetAppVersion, SetPreferredEditor } from '../../../bindings/elabftw-lite/app';
   import { errorMessage, preventDefaultSubmit } from '../../utils/helpers';
   import { showAlert } from '../stores/alert.svelte';
   import InstancesView from '../Instances/InstancesView.svelte';
@@ -25,6 +26,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let {profileUuid, preferredEditor, onBack, onSaved}: Props = $props();
   let selectedEditor = $derived(preferredEditor);
   let saving = $state(false);
+  let appVersion = $state('');
+
+  onMount(() => {
+    void GetAppVersion().then((version) => { appVersion = version; }).catch(() => { appVersion = 'unavailable'; });
+  });
 
   async function savePreference(): Promise<void> {
     saving = true;
@@ -65,4 +71,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
   </form>
 </section>
 <InstancesView {profileUuid} />
+{#if appVersion}
+  <p class='description'>eLabFTW lite · Version: {appVersion}</p>
+{/if}
 </div>
