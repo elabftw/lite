@@ -47,15 +47,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
   </div>
   <form onsubmit={preventDefaultSubmit(savePreference)} class='grid gap-1'>
     <div>
-      <label for='preferredEditor'>Preferred editor</label>
+      <label for='preferredEditor'>Default editor for new entries</label>
       <select id='preferredEditor' class='input' bind:value={selectedEditor}>
         <option value='tinymce'>TinyMCE (rich text)</option>
         <option value='markdown'>Markdown</option>
       </select>
     </div>
     <p>
-      The preference applies to new entries. Entries saved in another format
-      can be edited by selecting their original editor here. Content is never automatically converted.
+      Existing entries automatically open in their original editor. Content is never automatically converted.
     </p>
     <div class='flex justify-end'>
       <button type='submit' class='btn btn-primary' disabled={saving || selectedEditor === preferredEditor}>

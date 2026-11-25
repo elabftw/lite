@@ -89,8 +89,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let view = $state<View>('index');
   let loading = $state(false);
   let currentEntryId = $state<number | null>(null); // null means a new entry, otherwise update the selected one
-  // Prevent editing an existing body with the wrong editor format
-  let editorFormatMismatch = $derived(entryContentType !== (preferredEditor === 'markdown' ? 2 : 1));
   let importModalOpen = $state(false);
   let pushModalOpen = $state(false);
   let pushMode = $state<'single' | 'all'>('single'); // from View of an entry, push a single entry. From list of entries, push all.
@@ -245,10 +243,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
   // Save a new entry or update the selected one
   async function saveOrUpdateEntry(): Promise<boolean> {
     if (savingEntry) return false;
-    if (editorFormatMismatch) {
-      showAlert({type: 'warning', message: 'Change your preferred editor in Profile settings to edit this entry.'});
-      return false;
-    }
     if (!entryTitle.trim()) {
       showAlert({type: 'warning', message: 'Enter a title before saving.'});
       return false;
@@ -652,7 +646,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <span>Create entry</span>
       </button>
     {:else if view === 'editor'}
-      <button class='mobile-primary-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry}
+      <button class='mobile-primary-action' type='submit' form='entry-editor-form' disabled={savingEntry}
         onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; }}>
         <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
         <span>Save entry</span>
@@ -821,12 +815,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
       {profileUuid}
       {preferredEditor}
       onBack={closeProfileSettings}
-      onSaved={(editor) => {
-        if (currentEntryId === null && entryMainText.trim() === '') {
-          entryContentType = editor === 'markdown' ? 2 : 1;
-        }
-        preferredEditor = editor;
-      }}
+      onSaved={(editor) => { preferredEditor = editor; }}
     />
     <!-- VIEW EDITOR MODE -->
   {:else if view === 'editor'}
@@ -866,7 +855,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M214.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 109.3V480c0 17.7 14.3 32 32 32s32-14.3 32-32V109.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z'/></svg>
               <span class='editor-action-label'>Push</span>
             </button>
-            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry} aria-label='Save' title='Save'>
+            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={savingEntry} aria-label='Save' title='Save'>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
               <span class='editor-action-label'>Save</span>
             </button>
@@ -890,18 +879,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <div class='mt-2 mb-1'>
           <span id='entryMainTextLabel' class='text-strong'>Content</span>
         </div>
-        {#if editorFormatMismatch}
-          <div class='grid gap-1 mb-2'>
-            <p class='description'>
-              {currentEntryId === null ? 'This draft contains' : 'This entry was saved as'}
-              {entryContentType === 1 ? 'HTML (TinyMCE)' : 'Markdown'} content.
-              Select that editor in Profile settings to edit it without losing formatting.
-            </p>
-            <div>
-              <button type='button' class='btn btn-secondary' onclick={openProfileSettings}>Open profile settings</button>
-            </div>
-          </div>
-        {:else if preferredEditor === 'tinymce'}
+        {#if entryContentType === 1}
           <TinyMceEditor
             value={entryMainText}
             onChange={(next) => { entryMainText = next; }}
@@ -984,7 +962,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         <div class='unsaved-leave-actions'>
           <button type='button' class='btn btn-secondary' disabled={savingEntry} onclick={() => pendingLeave = null}>Keep editing</button>
           <button type='button' class='btn btn-danger' disabled={savingEntry} onclick={discardAndLeave}>Discard changes</button>
-          <button type='button' class='btn btn-primary' disabled={savingEntry || editorFormatMismatch || !entryTitle.trim()} onclick={saveAndLeave}>
+          <button type='button' class='btn btn-primary' disabled={savingEntry || !entryTitle.trim()} onclick={saveAndLeave}>
             {savingEntry ? 'Saving...' : 'Save and leave'}
           </button>
         </div>
