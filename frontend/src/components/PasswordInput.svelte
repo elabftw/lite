@@ -1,4 +1,5 @@
 <script lang='ts'>
+  import { onMount } from 'svelte';
   type Props = {
     id: string;
     value: string;
@@ -18,6 +19,11 @@
   }: Props = $props();
 
   let showPassword = $state(false);
+  let inputElement: HTMLInputElement;
+
+  onMount(() => {
+    if (autofocus) inputElement.focus();
+  });
 </script>
 
 <div class='password-input-wrapper'>
@@ -27,7 +33,7 @@
     type={showPassword ? 'text' : 'password'}
     placeholder={placeholder}
     {required}
-    {autofocus}
+    bind:this={inputElement}
     class={`input password-input ${className}`}
   />
 

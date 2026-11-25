@@ -18,7 +18,7 @@
 
 ### Go
 
-**Minimum version:** Go **1.22+**
+**Minimum version:** Go **1.25+**
 
 Check:
 
@@ -30,8 +30,7 @@ go version
 
 ### Node.js
 
-- **Minimum version:** Node.js **18+**
-- Recommended: Node.js 20+
+- **Minimum version:** Node.js **20.19+**
 
 ```bash
 node -v
@@ -42,10 +41,10 @@ npm -v
 
 ### Wails CLI
 
-Install:
+Install the Wails v3 CLI:
 
 ```bash
-go install github.com/wailsapp/wails/v2/cmd/wails@latest
+go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 ```
 
 Ensure it's in your PATH:
@@ -57,31 +56,31 @@ export PATH="$PATH:$HOME/go/bin"
 Verify:
 
 ```bash
-wails doctor
+wails3 doctor
 ```
 
 ---
 
 ## Linux dependencies
 
-Wails requires system libraries (GTK + WebKitGTK).
+Wails v3 requires system libraries (GTK 4 + WebKitGTK 6.0).
 
 ### Fedora (≥ 40)
 
 ```bash
-sudo dnf install gtk3-devel webkit2gtk4.1-devel pkgconf-pkg-config gcc gcc-c++
+sudo dnf install gtk4-devel webkitgtk6.0-devel pkgconf-pkg-config gcc gcc-c++
 ```
 
-### Ubuntu / Debian
+### Ubuntu (≥ 24.04) / Debian (≥ 13)
 
 ```bash
-sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+sudo apt install libgtk-4-dev libwebkitgtk-6.0-dev pkg-config
 ```
 
 ### Archlinux
 
 ```bash
-sudo pacman -Syu webkit2gtk-4.1
+sudo pacman -Syu gtk4 webkitgtk-6.0
 ```
 
 ---
@@ -91,59 +90,65 @@ sudo pacman -Syu webkit2gtk-4.1
 ```bash
 git clone https://github.com/elabftw/lite.git
 cd lite
-#install frontend dependencies
-cd frontend
-npm install
-# go back to parent directory
-cd ..
 ```
+
+Frontend dependencies are installed automatically by `wails3` tasks.
 
 ---
 
 ## Run the application
 
-### Standard (most Linux distros)
+```bash
+wails3 dev
+```
+
+A **native desktop window** should open automatically. The app is **not meant to run in a browser**.
+
+---
+
+## Build
+
+Outputs are written to `bin/`.
 
 ```bash
-wails dev
+# desktop binary for the current OS
+wails3 build
+# macOS .app bundle / Windows installer / Linux packages
+wails3 package
 ```
 
----
+### Android
 
-## Troubleshooting
-
-On Fedora ≥ 40, or Ubuntu 26, WebKitGTK **4.1** is used instead of **4.0**.
-Wails defaults to 4.0, so you must run:
+Requires a JDK (17+), the Android SDK and NDK (`ANDROID_HOME`, optionally `ANDROID_NDK_HOME`).
+Run `wails3 task android:install:deps` to check them.
 
 ```bash
-wails dev -tags webkit2_41
+# release APK in bin/elabftw-lite.apk (debug-signed unless ANDROID_KEYSTORE_FILE is set)
+wails3 task android:package
+# run on a connected device or emulator
+wails3 task android:run
 ```
 
-If you don't use this flag, you may see errors like:
+### iOS
 
-```text
-Package 'webkit2gtk-4.0' not found
-Build error - exit status 1
+Requires macOS with Xcode. Run `wails3 task ios:install:deps` to check them.
+
+```bash
+# run in the iOS simulator
+wails3 task ios:run
+# signed device build
+wails3 task ios:package:ipa IOS_PLATFORM=device CODESIGN_IDENTITY="Apple Development: ..."
 ```
+
+On mobile, data is stored in the app sandbox. Saving uploads to a user chosen location is not supported there yet.
 
 ---
 
-## 🖥 What to expect
+## Bindings
 
-- A **native desktop window** should open automatically
-- The app is **not meant to run in a browser**
+The frontend talks to Go through generated bindings in `frontend/bindings`.
+Regenerate them after changing exported `App` methods or their types:
 
----
-
-## 🌐 Dev URLs
-
-During development, Wails exposes:
-
-- Frontend only (no Go backend):
-  http://localhost:5173/
-
-- Internal dev server (Wails):
-  http://localhost:34115
-
-⚠️ These are for debugging only.
-The actual app runs in the native window.
+```bash
+wails3 generate bindings -clean=true -ts -i
+```

@@ -6,6 +6,8 @@
 @import url('easymde.css');
 @import url('uploads.css');
 @import url('entry-editor.css');
+@import url('mobile-first.css');
+@import url('mobile-ui-polish.css');
 
 /* TODO: add stylelint */
 :root {
@@ -273,6 +275,9 @@ a, .link-button {
 
 .modal {
   background: var(--dark-blue);
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   width: min(520px, calc(100vw - 2rem));
 }
 

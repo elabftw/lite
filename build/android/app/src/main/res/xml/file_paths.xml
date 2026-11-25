@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Camera captures are written here and shared with the camera app via the
+         FileProvider. -->
+    <cache-path name="captures" path="captures/" />
+    <!-- Decrypted uploads handed to the share sheet (see mobile_files.go). -->
+    <files-path name="exports" path="elabftw-lite/exports/" />
+</paths>

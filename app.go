@@ -13,15 +13,16 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 type App struct {
-	ctx   context.Context
 	index *ProfileIndex
 
 	activeProfileUUID string
@@ -36,16 +37,40 @@ func NewApp() *App {
 	return &App{}
 }
 
-// startup is called when the app starts. The context is saved
-// so we can call the runtime methods
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
+// OpenExternalURL opens an HTTP(S) link in the system browser.
+func (a *App) OpenExternalURL(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil || u.Hostname() == "" ||
+		(u.Scheme != "https" && u.Scheme != "http") {
+		return fmt.Errorf("Invalid external URL")
+	}
+
+	sanitizedURL, err := application.ValidateAndSanitizeURL(u.String())
+	if err != nil {
+		return err
+	}
+	if isMobile() {
+		application.Mobile.OpenURL(sanitizedURL)
+		return nil
+	}
+
+	return application.Get().Browser.OpenURL(sanitizedURL)
+}
+
+// ServiceStartup is called by Wails when the application starts.
+func (a *App) ServiceStartup(_ context.Context, _ application.ServiceOptions) error {
 	idx, err := loadProfileIndex()
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	a.index = idx
+
+	// remove plaintext files shared during a previous run
+	if isMobile() {
+		clearExports()
+	}
+	return nil
 }
 
 // requireUnlockedProfile gates authentified actions.
@@ -115,6 +140,11 @@ func (a *App) LockProfile() {
 		zeroBytes(a.activeKey)
 	}
 	a.activeKey = nil
+
+	// do not leave decrypted exports behind a locked profile
+	if isMobile() {
+		clearExports()
+	}
 }
 
 // DeleteProfile deletes a profile after verifying its passphrase.

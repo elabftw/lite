@@ -9,7 +9,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
 <script lang='ts'>
-  import { onMount } from 'svelte';
+  import { onMount, tick } from 'svelte';
   import {
     ListEntries,
     GetEntry,
@@ -24,13 +24,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
     PushAllEntriesToElabftw,
     ListEntryRemoteLinks,
     UnlinkEntryFromElabftw,
-  } from '../../wailsjs/go/main/App';
-  import type { main } from '../../wailsjs/go/models';
+  } from '../../bindings/elabftw-lite/app';
+  import type * as main from '../../bindings/elabftw-lite/models';
   import { autofocus, errorMessage, openExternalURL, preventDefaultSubmit, toRelativeTime } from '../utils/helpers';
   import ProfileSettings from './ProfileSelector/ProfileSettings.svelte';
   import InstancesPushModal from './Instances/InstancesPushModal.svelte';
   import EntryRemoteModal from './Instances/EntryRemoteModal.svelte';
   import EntryImportModal from './Instances/EntryImportModal.svelte';
+  import Modal from './Modal.svelte';
   import MarkdownEditor from "./MarkdownEditor.svelte";
   import TinyMceEditor from "./TinyMceEditor.svelte";
   import { showAlert } from "./stores/alert.svelte";
@@ -55,8 +56,36 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let entryTitle = $state('');
   let entryMainText = $state('');
   let selectedEntry = $state<main.Entry | null>(null);
+  const entryTags = $derived.by(() => {
+    try {
+      const details = JSON.parse(selectedEntry?.remoteDetails || '{}') as {tags?: unknown} | null;
+      return typeof details?.tags === 'string' ? details.tags.split('|').filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  });
   let entryContentType = $state<1 | 2>(1);
   let entries = $state<main.EntrySummary[]>([]);
+  type EntryFilter = 'all' | 'experiment' | 'resource';
+  type EntrySort = 'recent' | 'oldest' | 'title-asc' | 'title-desc' | 'created';
+  let entrySearch = $state('');
+  let entryFilter = $state<EntryFilter>('all');
+  let entrySort = $state<EntrySort>('recent');
+  const visibleEntries = $derived.by(() => {
+    const query = entrySearch.trim().toLocaleLowerCase();
+    return entries
+      .filter((entry) => (entryFilter === 'all' || entry.remoteType === entryFilter) &&
+        (!query || (entry.title || '').toLocaleLowerCase().includes(query) || String(entry.id).includes(query)))
+      .sort((a, b) => {
+        if (entrySort === 'title-asc' || entrySort === 'title-desc') {
+          const order = a.title.localeCompare(b.title, undefined, {sensitivity: 'base'});
+          return entrySort === 'title-asc' ? order : -order;
+        }
+        const key = entrySort === 'created' ? 'createdAt' : 'modifiedAt';
+        const difference = (Date.parse(b[key]) || 0) - (Date.parse(a[key]) || 0);
+        return entrySort === 'oldest' ? -difference : difference;
+      });
+  });
   let view = $state<View>('index');
   let loading = $state(false);
   let currentEntryId = $state<number | null>(null); // null means a new entry, otherwise update the selected one
@@ -80,6 +109,59 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let remoteActionInProgress = $state(false);
   // Recreate the uploads panel after a pull to load the replacement files
   let uploadsRefreshKey = $state(0);
+  let entryInfoExpanded = $state(true);
+  let mobileProfileOpen = $state(false);
+  let desktopProfileOpen = $state(false);
+  let mobileGlobalActionsOpen = $state(false);
+  let entryToDelete = $state<{id: number; title: string} | null>(null);
+  let deletingEntry = $state(false);
+  let savingEntry = $state(false);
+  let pendingLeave = $state<'index' | 'logout' | null>(null);
+  let savedDraft = $state<{title: string; body: string; contentType: 1 | 2}>({
+    title: '', body: '', contentType: 1,
+  });
+  let profileSettingsReturnView = $state<'index' | 'editor'>('index');
+  let keyboardVisible = $state(false);
+  let online = $state(true);
+  let entriesScrollY = 0;
+  const hasUnsavedChanges = $derived(
+    (view === 'editor' || (view === 'profile' && profileSettingsReturnView === 'editor')) &&
+    (entryTitle !== savedDraft.title ||
+      entryMainText !== savedDraft.body ||
+      entryContentType !== savedDraft.contentType)
+  );
+
+  async function finishNavigation(target: 'index' | 'logout'): Promise<void> {
+    if (target === 'index') {
+      await refreshEntries();
+      showAlert(null);
+      view = 'index';
+      await tick();
+      window.scrollTo(0, entriesScrollY);
+    } else {
+      try {
+        await LockProfile();
+        onLogout?.();
+      } catch (e: unknown) {
+        showAlert({type: 'error', message: errorMessage(e)});
+      }
+    }
+  }
+
+  function discardAndLeave(): void {
+    const target = pendingLeave;
+    pendingLeave = null;
+    if (target) void finishNavigation(target);
+  }
+
+  async function saveAndLeave(): Promise<void> {
+    const target = pendingLeave;
+    if (!target) return;
+    if (await saveOrUpdateEntry() && !hasUnsavedChanges) {
+      pendingLeave = null;
+      await finishNavigation(target);
+    }
+  }
 
   // Load the preferred editor from this profile's SQLite settings
   async function loadPreferences(): Promise<void> {
@@ -102,10 +184,12 @@ SPDX-License-Identifier: GPL-3.0-or-later
     entryMainText = entry.body;
     selectedEntry = entry;
     entryContentType = entry.contentType === 2 ? 2 : 1;
+    savedDraft = {title: entry.title, body: entry.body, contentType: entryContentType};
     remoteLinks = links;
   }
 
   async function openEntry(id: number): Promise<void> {
+    if (view === 'index') entriesScrollY = window.scrollY;
     showAlert(null);
     currentEntryId = id;
     try {
@@ -129,58 +213,70 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 
   async function openIndex(): Promise<void> {
-    await refreshEntries();
-    showAlert(null);
-    view = 'index';
+    if (hasUnsavedChanges) {
+      pendingLeave = 'index';
+      return;
+    }
+    await finishNavigation('index');
   }
 
   async function logout(): Promise<void> {
-    try {
-      await LockProfile();
-      onLogout?.();
-    } catch (e: unknown) {
-      showAlert({type: 'error', message: errorMessage(e)});
+    if (hasUnsavedChanges) {
+      pendingLeave = 'logout';
+      return;
     }
+    await finishNavigation('logout');
   }
 
   // Start a blank entry using the profile's preferred editor
   function openEditor(): void {
+    if (view === 'index') entriesScrollY = window.scrollY;
     view = 'editor';
     entryTitle = '';
     entryMainText = '';
     selectedEntry = null;
     entryContentType = preferredEditor === 'markdown' ? 2 : 1;
+    savedDraft = {title: '', body: '', contentType: entryContentType};
     showAlert(null);
     currentEntryId = null;
     remoteLinks = [];
   }
 
   // Save a new entry or update the selected one
-  async function saveOrUpdateEntry(): Promise<void> {
+  async function saveOrUpdateEntry(): Promise<boolean> {
+    if (savingEntry) return false;
     if (editorFormatMismatch) {
       showAlert({type: 'warning', message: 'Change your preferred editor in Profile settings to edit this entry.'});
-      return;
+      return false;
     }
+    if (!entryTitle.trim()) {
+      showAlert({type: 'warning', message: 'Enter a title before saving.'});
+      return false;
+    }
+    const snapshot = {title: entryTitle, body: entryMainText, contentType: entryContentType};
+    savingEntry = true;
     showAlert({type: 'info', message: currentEntryId ? 'Updating...' : 'Saving...'});
     try {
       if (currentEntryId) {
-        await UpdateEntry(profileUuid, currentEntryId, entryTitle, entryMainText, entryContentType);
+        await UpdateEntry(profileUuid, currentEntryId, snapshot.title, snapshot.body, snapshot.contentType);
         remoteLinks = await ListEntryRemoteLinks(profileUuid, currentEntryId);
         showAlert({type: 'success', message: 'Entry updated ✔'});
       } else {
-        const id = await SaveEntry(profileUuid, entryTitle, entryMainText, entryContentType);
+        const id = await SaveEntry(profileUuid, snapshot.title, snapshot.body, snapshot.contentType);
         currentEntryId = id;
         showAlert({type: 'success', message: `Saved with id ${id} ✔`});
       }
-
+      savedDraft = snapshot;
       await refreshEntries();
       if (currentEntryId) selectedEntry = await GetEntry(profileUuid, currentEntryId);
+      return true;
     } catch (e: unknown) {
       showAlert({type: 'error', message: errorMessage(e)});
+      return false;
+    } finally {
+      savingEntry = false;
     }
   }
-
-  let profileSettingsReturnView = $state<'index' | 'editor'>('index');
 
   function openProfileSettings(): void {
     showAlert(null);
@@ -199,26 +295,125 @@ SPDX-License-Identifier: GPL-3.0-or-later
     return currentEntryId;
   }
 
-  async function deleteEntry(id: number, title: string): Promise<void> {
+  function deleteEntry(id: number, title: string): void {
     showAlert(null);
-    const confirmed = window.confirm(`Delete "${title}"? This cannot be undone.`);
-    if (!confirmed) {
-      return;
-    }
+    entryToDelete = {id, title};
+  }
+
+  async function confirmDeleteEntry(): Promise<void> {
+    if (!entryToDelete || deletingEntry) return;
+    deletingEntry = true;
     try {
-      await DeleteEntry(profileUuid, id);
+      await DeleteEntry(profileUuid, entryToDelete.id);
+      entryToDelete = null;
       await refreshEntries();
     } catch (e: unknown) {
       showAlert({type: 'error', message: errorMessage(e)});
+    } finally {
+      deletingEntry = false;
     }
   }
 
-  const handleSubmit = preventDefaultSubmit(saveOrUpdateEntry);
+  const handleSubmit = preventDefaultSubmit(async () => { await saveOrUpdateEntry(); });
 
   onMount(() => {
+    if (window.matchMedia('(max-width: 720px)').matches) entryInfoExpanded = false;
     showAlert(null);
     void refreshEntries();
     void loadPreferences();
+
+    const updateConnectivity = () => { online = navigator.onLine; };
+    // TinyMCE keeps its iframe focused after iOS dismisses the keyboard. Track
+    // the actual available viewport height rather than focus on a touch device.
+    let fullViewportHeight = window.visualViewport?.height ?? window.innerHeight;
+    let viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const updateKeyboard = () => {
+      const viewport = window.visualViewport;
+      const height = viewport?.height ?? window.innerHeight;
+      const width = viewport?.width ?? window.innerWidth;
+      // Recalibrate after an orientation change; support Android WebViews that
+      // resize the layout viewport as well as iOS visual-viewport resizing.
+      if (Math.abs(width - viewportWidth) > 80) {
+        viewportWidth = width;
+        fullViewportHeight = height;
+      }
+      fullViewportHeight = Math.max(fullViewportHeight, height);
+      const editing = document.activeElement?.matches('input, textarea, select, iframe, [contenteditable="true"]');
+      keyboardVisible = Boolean(window.matchMedia('(max-width: 720px)').matches && editing &&
+        fullViewportHeight - height > 140);
+    };
+    const updateKeyboardAfterBlur = () => { window.requestAnimationFrame(updateKeyboard); };
+    let touchStart: {x: number; y: number} | null = null;
+    const touchBegin = (event: TouchEvent) => {
+      touchStart = null;
+      if (event.touches.length !== 1 || !window.matchMedia('(max-width: 720px)').matches ||
+        !/iPhone|iPad|iPod/.test(navigator.userAgent) || event.touches[0].clientX > 28 ||
+        event.target instanceof Element && event.target.closest('input, textarea, select, button, a, [contenteditable], .tox-tinymce, .CodeMirror, .mobile-app-nav')) return;
+      touchStart = {x: event.touches[0].clientX, y: event.touches[0].clientY};
+    };
+    const touchEnd = (event: TouchEvent) => {
+      if (!touchStart || event.changedTouches.length !== 1) return;
+      const dx = event.changedTouches[0].clientX - touchStart.x;
+      const dy = Math.abs(event.changedTouches[0].clientY - touchStart.y);
+      touchStart = null;
+      if (dx > 90 && dy < dx * 0.55) {
+        window.dispatchEvent(new Event('elabftw:native-back', {cancelable: true}));
+      }
+    };
+    const beforeUnload = (event: BeforeUnloadEvent) => {
+      if (!hasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    const nativeBack = (event: Event) => {
+      if (pendingLeave) {
+        event.preventDefault();
+        pendingLeave = null;
+      } else if (entryToDelete) {
+        event.preventDefault();
+        if (!deletingEntry) entryToDelete = null;
+      } else if (importModalOpen || pushModalOpen || remoteModalMode) {
+        // Do not navigate behind an open dialog.
+        event.preventDefault();
+      } else if (mobileProfileOpen || mobileGlobalActionsOpen || desktopProfileOpen) {
+        event.preventDefault();
+        mobileProfileOpen = false;
+        mobileGlobalActionsOpen = false;
+        desktopProfileOpen = false;
+      } else if (view === 'profile') {
+        event.preventDefault();
+        closeProfileSettings();
+      } else if (view === 'editor') {
+        event.preventDefault();
+        void openIndex();
+      }
+    };
+    updateConnectivity();
+    window.addEventListener('online', updateConnectivity);
+    window.addEventListener('offline', updateConnectivity);
+    window.addEventListener('beforeunload', beforeUnload);
+    window.addEventListener('elabftw:native-back', nativeBack);
+    window.addEventListener('focusin', updateKeyboard);
+    window.addEventListener('focusout', updateKeyboardAfterBlur);
+    window.visualViewport?.addEventListener('resize', updateKeyboard);
+    window.visualViewport?.addEventListener('scroll', updateKeyboard);
+    window.addEventListener('resize', updateKeyboard);
+    window.addEventListener('touchstart', touchBegin, {passive: true});
+    window.addEventListener('touchend', touchEnd, {passive: true});
+
+    return () => {
+      window.removeEventListener('online', updateConnectivity);
+      window.removeEventListener('offline', updateConnectivity);
+      window.removeEventListener('beforeunload', beforeUnload);
+      window.removeEventListener('elabftw:native-back', nativeBack);
+      window.removeEventListener('focusin', updateKeyboard);
+      window.removeEventListener('focusout', updateKeyboardAfterBlur);
+      window.visualViewport?.removeEventListener('resize', updateKeyboard);
+      window.visualViewport?.removeEventListener('scroll', updateKeyboard);
+      window.removeEventListener('resize', updateKeyboard);
+      window.removeEventListener('touchstart', touchBegin);
+      window.removeEventListener('touchend', touchEnd);
+    };
   });
 
   async function confirmImport(instanceId: number, entityType: 'experiment' | 'resource', remoteId: number): Promise<void> {
@@ -234,6 +429,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   // modal helpers
   function openPushModal(mode: 'single' | 'all', entryId: number | null = null): void {
+    if (mode === 'single' && hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pushing to eLabFTW.'});
+      return;
+    }
     pushMode = mode;
     pushEntryId = entryId;
     showAlert(null);
@@ -247,6 +446,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   function openRemoteModal(mode: 'open' | 'pull' | 'unlink'): void {
     if (remoteLinks.length === 0) return;
+    if (mode === 'pull' && hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pulling remote content.'});
+      return;
+    }
     showAlert(null);
     if (mode === 'open' && remoteLinks.length === 1) {
       openExternalURL(remoteLinks[0].url);
@@ -261,6 +464,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
   }
 
   async function confirmPull(link: main.EntryRemoteLink): Promise<void> {
+    if (hasUnsavedChanges) {
+      showAlert({type: 'warning', message: 'Save changes before pulling remote content.'});
+      return;
+    }
     const entryId = currentEntryId;
     if (entryId === null) {
       showAlert({type: 'error', message: 'No entry selected.'});
@@ -368,11 +575,10 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 <!-- when using editor, the container becomes larger (side panel with uploads/metadata appears) -->
 <div class='container' class:editor-container={view === 'editor'}>
-  <header class='flex justify-between items-center mb-2' class:border-bottom={view !== 'editor'}>
+  <header class='app-header flex justify-between items-center mb-2' class:border-bottom={view !== 'editor'}>
     <div class='w-100 text-ellipsis'>
       {#if view === 'index'}
         <h1>My Entries</h1>
-        <h2>Manage your saved entries.</h2>
       {:else if view === 'editor'}
         <div class='flex items-center gap-1'>
           {#if linkedEntityType}
@@ -381,6 +587,18 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <div class='grid'>
             <h1 class='text-ellipsis'>{entryTitle.trim() || 'Untitled entry'}</h1>
             <EntityCategoryStatus remoteDetails={selectedEntry?.remoteDetails} />
+            {#if entryTags.length}
+              <div class='entry-tag-list mt-1'>
+                {#each entryTags as tag, i (i)}
+                  <span class='entry-tag'>{tag}</span>
+                {/each}
+              </div>
+            {/if}
+            {#if hasUnsavedChanges}
+              <span class='entry-draft-status' role='status'>● Unsaved changes</span>
+            {:else if currentEntryId !== null}
+              <span class='entry-saved-status' role='status'>✓ Saved locally</span>
+            {/if}
           </div>
         </div>
       {:else} <!-- view === 'profile' -->
@@ -389,44 +607,149 @@ SPDX-License-Identifier: GPL-3.0-or-later
       {/if}
     </div>
 
-    <div class='flex gap-1 items-center'>
-      <div class='profile-pill flex items-center' title={profileName}>
-        <span class='profile-avatar'>{profileName.slice(0, 2).toUpperCase()}</span>
-        <span class='text-strong'>{profileName}</span>
-      </div>
-
-      <button
-        class='btn btn-secondary'
-        type='button'
-        onclick={openProfileSettings}
-        disabled={!preferencesReady || view === 'profile'}
-        aria-label='Profile settings'
-        title='Profile settings'
-      >
-        <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10.5 2h3l.55 2.6c.63.18 1.24.43 1.8.75l2.23-1.5 2.13 2.13-1.5 2.23c.32.56.57 1.17.75 1.8L22 10.5v3l-2.6.55a8 8 0 0 1-.75 1.8l1.5 2.23-2.13 2.13-2.23-1.5a8 8 0 0 1-1.8.75L13.5 22h-3l-.55-2.6a8 8 0 0 1-1.8-.75l-2.23 1.5-2.13-2.13 1.5-2.23a8 8 0 0 1-.75-1.8L2 13.5v-3l2.6-.55c.18-.63.43-1.24.75-1.8l-1.5-2.23 2.13-2.13 2.23 1.5c.56-.32 1.17-.57 1.8-.75z'/><circle cx='12' cy='12' r='3'/></svg>
-      </button>
-      <button class='btn btn-danger' onclick={logout}>Logout</button>
+    <div class='profile-actions flex gap-1 items-center'>
+      <details class='desktop-profile-menu' bind:open={desktopProfileOpen}>
+        <summary class='profile-pill flex items-center' aria-label={`Profile menu for ${profileName}`}>
+          <span class='profile-avatar'>{profileName.slice(0, 2).toUpperCase()}</span>
+          <span class='text-strong'>{profileName}</span>
+          <svg class='desktop-profile-chevron' aria-hidden='true' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>
+        </summary>
+        <div class='desktop-profile-popover'>
+          <button type='button' disabled={!preferencesReady || view === 'profile'}
+            onclick={() => { desktopProfileOpen = false; openProfileSettings(); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06A1.7 1.7 0 0 0 16 18.4l-.3.12V21h-2.7v-2.48L12 18.4l-1 .12V21H8.3v-2.48l-.3-.12a1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 4.6 15L4.48 14H2v-2.7h2.48l.12-.3a1.7 1.7 0 0 0-.34-1.88L4.2 9.06l1.9-1.9.06.06A1.7 1.7 0 0 0 8 7.6l.3-.12V5H11v2.48l1 .12 1-.12V5h2.7v2.48l.3.12a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 19.4 11l.12.3H22V14h-2.48z'/></svg>
+            Settings
+          </button>
+          <button type='button' onclick={() => { desktopProfileOpen = false; void logout(); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M10 17l5-5-5-5m5 5H3m9-9h8v18h-8'/></svg>
+            Logout
+          </button>
+        </div>
+      </details>
     </div>
   </header>
+  {#if !online}
+    <p class='offline-status' role='status'>Offline: local entries remain available. Remote actions need a connection.</p>
+  {/if}
 
   <!-- VIEW MODE -->
-  {#if view === 'index'}
-    <section class='panel' aria-labelledby='entries-title'>
-      <div class='flex justify-between items-center mb-2 border-bottom'>
-        <div class='flex items-center gap-1'>
-          <div class='icon' aria-hidden='true'>&#x2756;</div>
-          <div>
-            <h3 id='entries-title'>Saved entries</h3>
-            <span class='description'>
-              {entries.length === 1 ? '1 entry' : `${entries.length} entries`}
-            </span>
-          </div>
-        </div>
-        <div class='flex gap-1'>
-          <button class='btn btn-secondary' type='button' onclick={() => { showAlert(null); importModalOpen = true; }}>
+  <!-- Navigation appears only on phone-sized screens; the desktop header is unchanged. -->
+  <nav class='mobile-app-nav' class:keyboard-visible={keyboardVisible} class:with-primary-action={view !== 'profile'} aria-label='Main navigation'>
+    <button type='button' disabled={view === 'index'} aria-label='Back'
+      onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; if (view === 'profile') closeProfileSettings(); else void openIndex(); }}>
+      <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg>
+      <span>Back</span>
+    </button>
+    <button type='button' class:active={view === 'index'} aria-current={view === 'index' ? 'page' : undefined}
+      onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; void openIndex(); }}>
+      <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z'/></svg>
+      <span>Home</span>
+    </button>
+    {#if view === 'index'}
+      <button type='button' class='mobile-primary-action' disabled={!preferencesReady}
+        onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; openEditor(); }}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg>
+        <span>Create entry</span>
+      </button>
+    {:else if view === 'editor'}
+      <button class='mobile-primary-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry}
+        onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; }}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
+        <span>Save entry</span>
+      </button>
+    {/if}
+    <details class='mobile-global-actions-menu' bind:open={mobileGlobalActionsOpen}>
+      <summary aria-label='Actions menu' onclick={() => mobileProfileOpen = false}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><circle cx='5' cy='12' r='1'/><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/></svg>
+        <span>Actions</span>
+      </summary>
+      <div class='mobile-global-actions-popover'>
+        {#if view === 'index'}
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; showAlert(null); importModalOpen = true; }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v12m-5-5 5 5 5-5M5 20h14'/></svg>
             Import from eLabFTW
           </button>
-          <button class='btn btn-primary' onclick={openEditor} disabled={!preferencesReady}><span aria-hidden='true'>+</span> Create entry</button>
+          <button type='button' disabled={entries.length === 0} onclick={() => { mobileGlobalActionsOpen = false; openPushModal('all'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 21V6m-5 5 5-5 5 5M5 3h14'/></svg>
+            Push all to eLabFTW
+          </button>
+        {:else if view === 'editor'}
+        {#if remoteLinks.length > 0}
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('open'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 3h7v7M10 14 21 3M21 13v7H3V3h7'/></svg>
+            Open in eLabFTW
+          </button>
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('pull'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v15m-5-5 5 5 5-5M5 21h14'/></svg>
+            Pull from eLabFTW
+          </button>
+          <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('unlink'); }}>
+            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m17 7 4-4M3 21l4-4M9 15l6-6M6 12l-1 1a4 4 0 0 0 6 6l1-1m0-12 1-1a4 4 0 0 1 6 6l-1 1'/></svg>
+            Unlink entry
+          </button>
+        {/if}
+        <button type='button' disabled={!currentEntryId} onclick={() => { mobileGlobalActionsOpen = false; openPushModal('single', currentEntryId); }}>
+          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 21V6m-5 5 5-5 5 5M5 3h14'/></svg>
+          Push to eLabFTW
+        </button>
+        {:else}
+          <p class='mobile-menu-hint'>Nothing to do here yet.</p>
+        {/if}
+      </div>
+    </details>
+    <details class='mobile-profile-menu' class:active={view === 'profile'} bind:open={mobileProfileOpen}>
+      <summary aria-label='Profile menu' onclick={() => mobileGlobalActionsOpen = false}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8' r='4'/><path d='M4 21v-2a8 8 0 0 1 16 0v2'/></svg>
+        <span>Profile</span>
+      </summary>
+      <div class='mobile-profile-popover'>
+        <p class='mobile-profile-name'><span class='mobile-profile-initials'>{profileName.slice(0, 2).toUpperCase()}</span>{profileName}</p>
+        <button type='button' disabled={!preferencesReady || view === 'profile'}
+          onclick={() => { mobileProfileOpen = false; openProfileSettings(); }}>
+          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='12' cy='12' r='3'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-1.9 1.9-.06-.06A1.7 1.7 0 0 0 16 18.4l-.3.12V21h-2.7v-2.48L12 18.4l-1 .12V21H8.3v-2.48l-.3-.12a1.7 1.7 0 0 0-1.88.34l-.06.06-1.9-1.9.06-.06A1.7 1.7 0 0 0 4.6 15L4.48 14H2v-2.7h2.48l.12-.3a1.7 1.7 0 0 0-.34-1.88L4.2 9.06l1.9-1.9.06.06A1.7 1.7 0 0 0 8 7.6l.3-.12V5H11v2.48l1 .12 1-.12V5h2.7v2.48l.3.12a1.7 1.7 0 0 0 1.88-.34l.06-.06 1.9 1.9-.06.06A1.7 1.7 0 0 0 19.4 11l.12.3H22V14h-2.48z'/></svg>
+          Settings
+        </button>
+        <button type='button' onclick={() => { mobileProfileOpen = false; void logout(); }}>
+          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M10 17l5-5-5-5m5 5H3m9-9h8v18h-8'/></svg>
+          Logout
+        </button>
+      </div>
+    </details>
+  </nav>
+
+  {#if view === 'index'}
+    <section class='panel entries-page' aria-label='Entries'>
+      <div class='mobile-entry-controls'>
+        <label class='mobile-entry-search'>
+          <svg aria-hidden='true' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.35-4.35'/></svg>
+          <input type='search' placeholder='Search entries...' aria-label='Search entries' bind:value={entrySearch} />
+        </label>
+        <div class='mobile-entry-filters' role='group' aria-label='Filter entries'>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'all'} aria-pressed={entryFilter === 'all'} onclick={() => entryFilter = 'all'}>All</button>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'experiment'} aria-pressed={entryFilter === 'experiment'} onclick={() => entryFilter = 'experiment'}>Experiments</button>
+          <button type='button' class='entry-filter-option' class:active={entryFilter === 'resource'} aria-pressed={entryFilter === 'resource'} onclick={() => entryFilter = 'resource'}>Resources</button>
+        </div>
+        <div class='mobile-entry-sort'>
+          <span class='description'>{visibleEntries.length} {visibleEntries.length === 1 ? 'entry' : 'entries'}</span>
+          <label for='entry-sort'>Sort by</label>
+          <select id='entry-sort' class='input' bind:value={entrySort}>
+            <option value='recent'>Last edited</option>
+            <option value='oldest'>Oldest edited</option>
+            <option value='created'>Recently created</option>
+            <option value='title-asc'>Title A-Z</option>
+            <option value='title-desc'>Title Z-A</option>
+          </select>
+        </div>
+      </div>
+
+      <div class='entries-toolbar flex justify-end mb-2'>
+        <div class='entries-actions desktop-entry-actions flex gap-1'>
+          <button class='btn btn-secondary entry-action-button' type='button' aria-label='Import from eLabFTW' title='Import from eLabFTW' onclick={() => { showAlert(null); importModalOpen = true; }}>
+            <svg class='mobile-import-icon' aria-hidden='true' width='1.25em' height='1.25em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M12 16V4m-5 5 5-5 5 5M5 20h14'/></svg>
+            <span class='entry-action-label'>Import from eLabFTW</span>
+            <span class='mobile-import-label'>Import</span>
+          </button>
+          <button class='btn btn-primary entry-action-button' onclick={openEditor} disabled={!preferencesReady} aria-label='Create entry' title='Create entry'><span aria-hidden='true'>+</span><span class='entry-action-label'>Create entry</span></button>
         </div>
       </div>
 
@@ -439,14 +762,23 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <div class='icon' aria-hidden='true'>✎</div>
           <h3>No entries yet</h3>
           <p>Create your first entry to start writing.</p>
+          <button type='button' class='btn btn-primary mobile-empty-create' disabled={!preferencesReady} onclick={openEditor}>
+            + Create entry
+          </button>
+        </div>
+      {:else if visibleEntries.length === 0}
+        <div class='empty-state'>
+          <h3>No matching entries</h3>
+          <p>Try another search or filter.</p>
+          <button type='button' class='btn btn-secondary' onclick={() => { entrySearch = ''; entryFilter = 'all'; }}>Clear filters</button>
         </div>
       {:else}
         <div class='grid gap-1'>
-          {#each entries as e (e.id)}
-            <div class='flex gap-1'>
+          {#each visibleEntries as e (e.id)}
+            <div class='entry-row flex gap-1'>
               <button type='button' class='entry-card' onclick={() => openEntry(e.id)} disabled={!preferencesReady}>
                 <span class='icon-sm' aria-hidden='true'><EntityTypeIcon type={e.remoteType} /></span>
-                <span class='grid gap-03'>
+                <span class='entry-card-details grid gap-03'>
                 <span class='text-ellipsis text-strong text-big'>
                   {e.title || 'Untitled entry'}
                 </span>
@@ -456,11 +788,11 @@ SPDX-License-Identifier: GPL-3.0-or-later
                 <EntityCategoryStatus remoteDetails={e.remoteDetails} />
               </span>
 
-                <span class='text-orange text-strong' aria-hidden='true'>
+                <span class='entry-card-open text-orange text-strong' aria-hidden='true'>
                 Open &#8594;
               </span>
               </button>
-              <button type='button' class='btn btn-danger ' onclick={() => deleteEntry(e.id, e.title)}
+              <button type='button' class='btn btn-danger entry-delete-button' onclick={() => deleteEntry(e.id, e.title)}
                       aria-label={`Delete ${e.title}`}>
                 <span aria-hidden='true'>&#128465;</span>
               </button>
@@ -468,10 +800,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
           {/each}
         </div>
       {/if}
-      <div class='flex justify-end mt-2 gap-1'>
+      <div class='desktop-push-all flex justify-end mt-2 gap-1'>
         {#if entries.length !== 0}
           <button class='btn btn-secondary' onclick={() => openPushModal('all')}>Push all entries to eLabFTW</button>
         {/if}
+      </div>
+      <div class='mobile-entry-dock'>
+        <button class='btn btn-secondary' type='button' onclick={() => { showAlert(null); importModalOpen = true; }}>
+          <svg aria-hidden='true' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v12m-5-5 5 5 5-5M5 20h14'/></svg>
+          Import
+        </button>
+        <button class='btn btn-primary' type='button' onclick={openEditor} disabled={!preferencesReady}>
+          <span aria-hidden='true'>+</span> Create entry
+        </button>
       </div>
     </section>
     <!-- PROFILE SETTINGS -->
@@ -490,41 +831,44 @@ SPDX-License-Identifier: GPL-3.0-or-later
     <!-- VIEW EDITOR MODE -->
   {:else if view === 'editor'}
     <div>
-      <div class='panel flex justify-between mb-2'>
-          <button class='btn btn-secondary' type='button' onclick={openIndex}>← Back</button>
-          <div class='flex gap-1'>
+      <div class='panel entry-editor-toolbar flex justify-between mb-2'>
+          <button class='btn btn-secondary' type='button' onclick={openIndex} aria-label='Back' title='Back'><span aria-hidden='true'>←</span><span class='editor-action-label'>Back</span></button>
+          <div class='entry-editor-actions flex gap-1'>
               {#if remoteLinks.length > 0}
-                <div class='flex gap-1'>
+                <div class='entry-editor-remote-actions flex gap-1'>
                   <button
                     type='button'
                     class='btn btn-secondary btn-external-link'
+                    aria-label='Open in eLabFTW'
                     title={remoteLinks.length === 1
                       ? `Open ${remoteLinks[0].type} #${remoteLinks[0].remoteId} on ${remoteLinks[0].siteUrl}`
                       : 'Choose an eLabFTW instance'}
                     onclick={() => openRemoteModal('open')}
                   >
                     <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M14 3h7v7M10 14 21 3M21 13v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h7'/></svg>
-                    Open in eLabFTW
+                    <span class='editor-action-label'>Open in eLabFTW</span>
                   </button>
-                  <button type='button' class='btn btn-secondary' onclick={() => openRemoteModal('pull')}>
+                  <button type='button' class='btn btn-secondary' onclick={() => openRemoteModal('pull')} aria-label='Pull' title='Pull'>
                     <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M169.4 502.6c12.5 12.5 32.8 12.5 45.3 0l160-160c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L224 402.7V32c0-17.7-14.3-32-32-32s-32 14.3-32 32v370.7L54.6 297.3c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l160 160z'/></svg>
-                    Pull
+                    <span class='editor-action-label'>Pull</span>
                   </button>
                   <button type='button' class='btn btn-secondary btn-quiet'
+                          aria-label='Unlink'
                           title='Remove the local sync link without deleting either entry'
                           onclick={() => openRemoteModal('unlink')}>
-                    Unlink
+                    <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m18.84 12.25 1.72-1.71a4 4 0 0 0-5.66-5.66l-1.72 1.71M5.16 11.75l-1.72 1.71a4 4 0 0 0 5.66 5.66l1.72-1.71M8 2v4M2 8h4m10 14v-4m6-2h-4'/></svg>
+                    <span class='editor-action-label'>Unlink</span>
                   </button>
                 </div>
               {/if}
             <button class='btn btn-secondary' type='button' disabled={!currentEntryId}
-                    onclick={() => openPushModal('single', currentEntryId)}>
+                    aria-label='Push' title='Push' onclick={() => openPushModal('single', currentEntryId)}>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 384 512'><path fill='currentColor' d='M214.6 9.4c-12.5-12.5-32.8-12.5-45.3 0l-160 160c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L160 109.3V480c0 17.7 14.3 32 32 32s32-14.3 32-32V109.3l105.4 105.4c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3l-160-160z'/></svg>
-              Push
+              <span class='editor-action-label'>Push</span>
             </button>
-            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch}>
+            <button class='btn btn-primary' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry} aria-label='Save' title='Save'>
               <svg aria-hidden='true' width='1em' height='1em' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
-              Save
+              <span class='editor-action-label'>Save</span>
             </button>
           </div>
       </div>
@@ -544,7 +888,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         </div>
 
         <div class='mt-2 mb-1'>
-          <label id='entryMainTextLabel'>Content</label>
+          <span id='entryMainTextLabel' class='text-strong'>Content</span>
         </div>
         {#if editorFormatMismatch}
           <div class='grid gap-1 mb-2'>
@@ -572,14 +916,22 @@ SPDX-License-Identifier: GPL-3.0-or-later
         {/if}
         </form>
         <aside class='editor-sidebar'>
-          <section class='panel'>
-            <h3 class='border-bottom'>Entry information</h3>
+          <details class='panel entry-info-accordion' bind:open={entryInfoExpanded}>
+            <summary class='entry-panel-heading'>
+              <h3>Entry information</h3>
+              <svg class='entry-chevron' aria-hidden='true' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>
+            </summary>
+            <div class='entry-detail-content'>
             <div class='entry-info-row'><span>Type</span><span class='flex items-center gap-03'><EntityTypeIcon type={linkedEntityType} /> {linkedEntityType === 'resource' ? 'Resource' : linkedEntityType === 'experiment' ? 'Experiment' : 'Local entry'}</span></div>
             <div class='entry-info-row'><span>Category / Status</span><EntityCategoryStatus remoteDetails={selectedEntry?.remoteDetails} emptyLabel={remoteLinks.length > 0 ? 'Pull to load' : 'Not linked'} /></div>
             <div class='entry-info-row'><span>Created</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.createdAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Modified</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.modifiedAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Content type</span><span>{entryContentType === 1 ? 'HTML (TinyMCE)' : 'Markdown'}</span></div>
-          </section>
+            {#if selectedEntry?.remoteDetails && selectedEntry.remoteSource}
+              <p class='description mt-1 entry-pull-source'>Last pulled from {selectedEntry.remoteSource}</p>
+            {/if}
+            </div>
+          </details>
           {#key uploadsRefreshKey}
             <UploadsPanel
               {profileUuid}
@@ -590,7 +942,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
           {/key}
           <EntryReadonlyPanels
             remoteDetails={selectedEntry?.remoteDetails}
-            source={selectedEntry?.remoteSource}
             linked={remoteLinks.length > 0}
           />
         </aside>
@@ -625,5 +976,30 @@ SPDX-License-Identifier: GPL-3.0-or-later
       onPull={confirmPull}
       onUnlink={confirmUnlink}
     />
+  {/if}
+  {#if pendingLeave}
+    <Modal title='Unsaved changes' onClose={() => pendingLeave = null}>
+      <p>This entry has unsaved local changes. You can keep editing, discard them, or save before leaving.</p>
+      {#snippet actions()}
+        <div class='unsaved-leave-actions'>
+          <button type='button' class='btn btn-secondary' disabled={savingEntry} onclick={() => pendingLeave = null}>Keep editing</button>
+          <button type='button' class='btn btn-danger' disabled={savingEntry} onclick={discardAndLeave}>Discard changes</button>
+          <button type='button' class='btn btn-primary' disabled={savingEntry || editorFormatMismatch || !entryTitle.trim()} onclick={saveAndLeave}>
+            {savingEntry ? 'Saving...' : 'Save and leave'}
+          </button>
+        </div>
+      {/snippet}
+    </Modal>
+  {/if}
+  {#if entryToDelete}
+    <Modal title='Delete entry' onClose={() => { if (!deletingEntry) entryToDelete = null; }}>
+      <p>Delete "{entryToDelete.title || 'Untitled entry'}"? This cannot be undone.</p>
+      {#snippet actions()}
+        <button class='btn btn-secondary' type='button' disabled={deletingEntry} onclick={() => entryToDelete = null}>Cancel</button>
+        <button class='btn btn-danger' type='button' disabled={deletingEntry} onclick={confirmDeleteEntry}>
+          {deletingEntry ? 'Deleting...' : 'Delete entry'}
+        </button>
+      {/snippet}
+    </Modal>
   {/if}
 </div>

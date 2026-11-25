@@ -47,6 +47,9 @@ type remoteEntry struct {
 	Metadata         json.RawMessage `json:"metadata"`
 	ItemsLinks       json.RawMessage `json:"items_links"`
 	ExperimentsLinks json.RawMessage `json:"experiments_links"`
+	Comments         json.RawMessage `json:"comments"`
+	Steps            json.RawMessage `json:"steps"`
+	CompoundsLinks   json.RawMessage `json:"compounds_links"`
 	Uploads          []remoteUpload  `json:"uploads"`
 }
 
@@ -172,6 +175,10 @@ func (a *App) pullRemoteEntry(profileUUID string, db *sql.DB, entryID int64, ins
 		Metadata:         remote.Metadata,
 		ItemsLinks:       remote.ItemsLinks,
 		ExperimentsLinks: remote.ExperimentsLinks,
+		Comments:         remote.Comments,
+		Steps:            remote.Steps,
+		CompoundsLinks:   remote.CompoundsLinks,
+		MetadataLabels:   a.resolveMetadataLabels(profileUUID, instanceID, remote.Metadata),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("encode remote details: %w", err)
@@ -250,14 +257,18 @@ func validatePulledRemoteIdentity(remote remoteEntry, remoteID int64, entityType
 }
 
 type remoteReadOnlyDetails struct {
-	CategoryTitle    string          `json:"categoryTitle"`
-	CategoryColor    string          `json:"categoryColor"`
-	StatusTitle      string          `json:"statusTitle"`
-	StatusColor      string          `json:"statusColor"`
-	Tags             string          `json:"tags"`
-	Metadata         json.RawMessage `json:"metadata"`
-	ItemsLinks       json.RawMessage `json:"itemsLinks"`
-	ExperimentsLinks json.RawMessage `json:"experimentsLinks"`
+	CategoryTitle    string            `json:"categoryTitle"`
+	CategoryColor    string            `json:"categoryColor"`
+	StatusTitle      string            `json:"statusTitle"`
+	StatusColor      string            `json:"statusColor"`
+	Tags             string            `json:"tags"`
+	Metadata         json.RawMessage   `json:"metadata"`
+	ItemsLinks       json.RawMessage   `json:"itemsLinks"`
+	ExperimentsLinks json.RawMessage   `json:"experimentsLinks"`
+	Comments         json.RawMessage   `json:"comments,omitempty"`
+	Steps            json.RawMessage   `json:"steps,omitempty"`
+	CompoundsLinks   json.RawMessage   `json:"compoundsLinks,omitempty"`
+	MetadataLabels   map[string]string `json:"metadataLabels,omitempty"`
 }
 
 func (a *App) pullRemoteUpload(

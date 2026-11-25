@@ -1,12 +1,13 @@
 <script lang='ts'>
+  import { onMount } from 'svelte';
   import {
     DeleteUpload,
     DownloadUpload,
     ImportUpload,
     ListEntryUploads,
     SelectFile
-  } from '../../../wailsjs/go/main/App';
-  import type { main } from '../../../wailsjs/go/models';
+  } from '../../../bindings/elabftw-lite/app';
+  import type * as main from '../../../bindings/elabftw-lite/models';
   import { errorMessage } from '../../utils/helpers';
   import { showAlert } from "../stores/alert.svelte";
   type Props = {
@@ -20,6 +21,11 @@
   let uploads = $state<main.StoredUpload[]>([]);
   let loading = $state(false);
   let busyUploadId = $state<number | null>(null); // state when upload is being downloaded or deleted, modal popup
+  let uploadsExpanded = $state(true);
+
+  onMount(() => {
+    if (window.matchMedia('(max-width: 720px)').matches) uploadsExpanded = false;
+  });
 
   async function refreshUploads(): Promise<void> {
     if (!entryId) {
@@ -124,7 +130,7 @@
 </script>
 
 <section class='panel'>
-  <details open>
+  <details bind:open={uploadsExpanded}>
     <summary class='entry-panel-heading'>
       <h3>Uploads ({uploads.length})</h3>
       <svg class='entry-chevron' aria-hidden='true' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>
