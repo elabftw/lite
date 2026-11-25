@@ -56,6 +56,14 @@ SPDX-License-Identifier: GPL-3.0-or-later
   let entryTitle = $state('');
   let entryMainText = $state('');
   let selectedEntry = $state<main.Entry | null>(null);
+  const entryTags = $derived.by(() => {
+    try {
+      const details = JSON.parse(selectedEntry?.remoteDetails || '{}') as {tags?: unknown} | null;
+      return typeof details?.tags === 'string' ? details.tags.split('|').filter(Boolean) : [];
+    } catch {
+      return [];
+    }
+  });
   let entryContentType = $state<1 | 2>(1);
   let entries = $state<main.EntrySummary[]>([]);
   type EntryFilter = 'all' | 'experiment' | 'resource';
@@ -579,6 +587,13 @@ SPDX-License-Identifier: GPL-3.0-or-later
           <div class='grid'>
             <h1 class='text-ellipsis'>{entryTitle.trim() || 'Untitled entry'}</h1>
             <EntityCategoryStatus remoteDetails={selectedEntry?.remoteDetails} />
+            {#if entryTags.length}
+              <div class='entry-tag-list mt-1'>
+                {#each entryTags as tag, i (i)}
+                  <span class='entry-tag'>{tag}</span>
+                {/each}
+              </div>
+            {/if}
             {#if hasUnsavedChanges}
               <span class='entry-draft-status' role='status'>● Unsaved changes</span>
             {:else if currentEntryId !== null}
@@ -912,6 +927,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
             <div class='entry-info-row'><span>Created</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.createdAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Modified</span><span>{selectedEntry ? new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(new Date(selectedEntry.modifiedAt)) : 'Not saved yet'}</span></div>
             <div class='entry-info-row'><span>Content type</span><span>{entryContentType === 1 ? 'HTML (TinyMCE)' : 'Markdown'}</span></div>
+            {#if selectedEntry?.remoteDetails && selectedEntry.remoteSource}
+              <p class='description mt-1 entry-pull-source'>Last pulled from {selectedEntry.remoteSource}</p>
+            {/if}
             </div>
           </details>
           {#key uploadsRefreshKey}
@@ -924,7 +942,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
           {/key}
           <EntryReadonlyPanels
             remoteDetails={selectedEntry?.remoteDetails}
-            source={selectedEntry?.remoteSource}
             linked={remoteLinks.length > 0}
           />
         </aside>

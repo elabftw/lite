@@ -97,6 +97,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: .4rem;
+  white-space: normal;
 }
 
 .entry-tag {
@@ -105,7 +106,12 @@
   border-radius: 6px;
   color: var(--soft-white);
   font-size: .85rem;
+  overflow-wrap: anywhere;
   padding: .3rem .55rem;
+}
+
+.entry-pull-source {
+  overflow-wrap: anywhere;
 }
 
 .entry-readonly-row {

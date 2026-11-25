@@ -1,7 +1,7 @@
 
 <script lang='ts'>
-  type Props = { remoteDetails?: string; source?: string; linked: boolean };
-  let {remoteDetails, source, linked}: Props = $props();
+  type Props = { remoteDetails?: string; linked: boolean };
+  let {remoteDetails, linked}: Props = $props();
 
   type RemoteLink = {
     title?: string;
@@ -22,7 +22,6 @@
   type RemoteList<T> = string | T[] | {data: T[]};
 
   type RemoteDetails = {
-    tags?: string;
     metadata?: string | Metadata;
     itemsLinks?: string | RemoteLink[] | {data: RemoteLink[]};
     experimentsLinks?: string | RemoteLink[] | {data: RemoteLink[]};
@@ -46,8 +45,6 @@
 
   // Parse the saved remote information
   const data = $derived(parseJSON<RemoteDetails>(remoteDetails, {}));
-  // Split pipe-separated tags into a list
-  const tags = $derived(data.tags?.split('|').filter(Boolean) ?? []);
   const comments = $derived(remoteList(data.comments));
   const steps = $derived(remoteList(data.steps));
   const compounds = $derived(remoteList(data.compoundsLinks));
@@ -81,12 +78,11 @@
   ]);
 
   const sections = $derived([
-    {name: 'Tags', count: tags.length, available: !!remoteDetails},
     {name: 'Metadata', count: metadata.length, available: !!remoteDetails},
-    {name: 'Links', count: links.length, available: !!remoteDetails},
-    {name: 'Comments', count: comments.length, available: data.comments != null},
     {name: 'Steps', count: steps.length, available: data.steps != null},
+    {name: 'Links', count: links.length, available: !!remoteDetails},
     {name: 'Compounds', count: compounds.length, available: data.compoundsLinks != null},
+    {name: 'Comments', count: comments.length, available: data.comments != null},
   ]);
 
   const hint = $derived(linked ? 'Pull from eLabFTW to load this information.' : 'Not linked to an eLabFTW instance.');
@@ -102,10 +98,6 @@
     <div class='entry-detail-content'>
       {#if !section.available}
         <p class='description'>{hint}</p>
-      {:else if section.name === 'Tags'}
-        {#if tags.length}
-          <div class='entry-tag-list'>{#each tags as tag, i (i)}<span class='entry-tag'>{tag}</span>{/each}</div>
-        {:else}<p class='description'>No tags.</p>{/if}
       {:else if section.name === 'Metadata'}
         {#if metadata.length}
           {#each metadata as field (field.name)}
@@ -140,7 +132,6 @@
           </div>
         {:else}<p class='description'>No compounds.</p>{/each}
       {/if}
-      {#if section.available && source}<p class='description'>Last pulled from {source}</p>{/if}
     </div>
   </details>
 {/each}
