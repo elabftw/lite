@@ -619,7 +619,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
   <!-- VIEW MODE -->
   <!-- Navigation appears only on phone-sized screens; the desktop header is unchanged. -->
-  <nav class='mobile-app-nav' class:keyboard-visible={keyboardVisible} aria-label='Main navigation'>
+  <nav class='mobile-app-nav' class:keyboard-visible={keyboardVisible} class:with-primary-action={view !== 'profile'} aria-label='Main navigation'>
     <button type='button' disabled={view === 'index'} aria-label='Back'
       onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; if (view === 'profile') closeProfileSettings(); else void openIndex(); }}>
       <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m15 18-6-6 6-6'/></svg>
@@ -630,6 +630,19 @@ SPDX-License-Identifier: GPL-3.0-or-later
       <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z'/></svg>
       <span>Home</span>
     </button>
+    {#if view === 'index'}
+      <button type='button' class='mobile-primary-action' disabled={!preferencesReady}
+        onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; openEditor(); }}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg>
+        <span>Create entry</span>
+      </button>
+    {:else if view === 'editor'}
+      <button class='mobile-primary-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry}
+        onclick={() => { mobileProfileOpen = false; mobileGlobalActionsOpen = false; }}>
+        <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
+        <span>Save entry</span>
+      </button>
+    {/if}
     <details class='mobile-global-actions-menu' bind:open={mobileGlobalActionsOpen}>
       <summary aria-label='Actions menu' onclick={() => mobileProfileOpen = false}>
         <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round'><circle cx='5' cy='12' r='1'/><circle cx='12' cy='12' r='1'/><circle cx='19' cy='12' r='1'/></svg>
@@ -637,10 +650,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
       </summary>
       <div class='mobile-global-actions-popover'>
         {#if view === 'index'}
-          <button type='button' class='mobile-primary-action' disabled={!preferencesReady} onclick={() => { mobileGlobalActionsOpen = false; openEditor(); }}>
-            <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 5v14M5 12h14'/></svg>
-            Create entry
-          </button>
           <button type='button' onclick={() => { mobileGlobalActionsOpen = false; showAlert(null); importModalOpen = true; }}>
             <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M12 3v12m-5-5 5 5 5-5M5 20h14'/></svg>
             Import from eLabFTW
@@ -650,10 +659,6 @@ SPDX-License-Identifier: GPL-3.0-or-later
             Push all to eLabFTW
           </button>
         {:else if view === 'editor'}
-        <button class='mobile-save-action' type='submit' form='entry-editor-form' disabled={editorFormatMismatch || savingEntry} onclick={() => mobileGlobalActionsOpen = false}>
-          <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z'/><path d='M17 21v-8H7v8M7 3v5h8'/></svg>
-          Save entry
-        </button>
         {#if remoteLinks.length > 0}
           <button type='button' onclick={() => { mobileGlobalActionsOpen = false; openRemoteModal('open'); }}>
             <svg aria-hidden='true' width='19' height='19' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2'><path d='M14 3h7v7M10 14 21 3M21 13v7H3V3h7'/></svg>
@@ -677,7 +682,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
         {/if}
       </div>
     </details>
-    <details class='mobile-profile-menu' bind:open={mobileProfileOpen}>
+    <details class='mobile-profile-menu' class:active={view === 'profile'} bind:open={mobileProfileOpen}>
       <summary aria-label='Profile menu' onclick={() => mobileGlobalActionsOpen = false}>
         <svg aria-hidden='true' width='21' height='21' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8' r='4'/><path d='M4 21v-2a8 8 0 0 1 16 0v2'/></svg>
         <span>Profile</span>

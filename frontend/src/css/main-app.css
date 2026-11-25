@@ -22,6 +22,11 @@
   transform: scale(.8);
 }
 
+.profile-empty-add {
+  border: 0;
+  cursor: pointer;
+}
+
 .profile-avatar {
   background: var(--orange);
   color: var(--orange-dark);

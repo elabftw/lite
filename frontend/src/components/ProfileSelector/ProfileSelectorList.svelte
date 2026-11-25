@@ -94,7 +94,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
       </div>
     {:else}
       <div class='empty-state'>
-        <div class='icon-sm' aria-hidden='true'>+</div>
+        <button type='button' class='icon-sm profile-empty-add' aria-label='Add profile' onclick={openAddProfile}>+</button>
         <h3>No profiles yet</h3>
         <p>Create a profile to start saving entries.</p>
       </div>
