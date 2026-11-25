@@ -22,7 +22,7 @@ Unicode true
 ## !define INFO_PROJECTNAME    "my-project" # Default "elabftw-lite"
 ## !define INFO_COMPANYNAME    "My Company" # Default "Deltablot"
 ## !define INFO_PRODUCTNAME    "My Product Name" # Default "eLabFTW lite"
-## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.1.0"
+## !define INFO_PRODUCTVERSION "1.0.0"     # Default "0.3.0"
 ## !define INFO_COPYRIGHT      "(c) Now, My Company" # Default "© 2026 Nicolas CARPi"
 ###
 ## !define PRODUCT_EXECUTABLE  "Application.exe"      # Default "${INFO_PROJECTNAME}.exe"

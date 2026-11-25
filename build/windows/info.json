@@ -1,12 +1,12 @@
 {
 	"fixed": {
-		"file_version": "0.1.0",
-		"product_version": "0.1.0"
+		"file_version": "0.3.0",
+		"product_version": "0.3.0"
 	},
 	"info": {
 		"0409": {
-			"FileVersion": "0.1.0",
-			"ProductVersion": "0.1.0",
+			"FileVersion": "0.3.0",
+			"ProductVersion": "0.3.0",
 			"CompanyName": "Deltablot",
 			"FileDescription": "Local-first eLabFTW lite client",
 			"LegalCopyright": "© 2026 Nicolas CARPi",
