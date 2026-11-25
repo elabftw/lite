@@ -20,6 +20,8 @@
 
 /* the main text area */
 .EasyMDEContainer .CodeMirror {
+  --text: var(--dark-blue);
+
   background: var(--soft-white);
   border-radius: 0 0 12px 12px;
   color: var(--dark-blue);
@@ -37,10 +39,15 @@
   color: var(--dark-blue);
 }
 
+.editor-preview,
+.editor-preview-side {
+  --text: var(--dark-blue);
+  color: var(--dark-blue);
+}
+
 .editor-preview-side {
   background: var(--soft-white);
   border-color: var(--border-soft);
-  color: var(--dark-blue);
 }
 
 /* in preview, the titles appear in white (?) */
