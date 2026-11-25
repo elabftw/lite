@@ -94,14 +94,6 @@
     }
   }
 
-  .mobile-app-nav > button:focus-visible,
-  .mobile-app-nav .mobile-profile-menu > summary:focus-visible,
-  .mobile-app-nav .mobile-global-actions-menu > summary:focus-visible {
-    background: var(--dark-blue-2);
-    outline: 2px solid var(--orange-light);
-    outline-offset: -3px;
-  }
-
   .mobile-app-nav > button.mobile-primary-action {
     color: var(--orange-light);
     font-weight: 800;
@@ -160,6 +152,14 @@
     padding: 0.6rem 0.7rem;
     text-align: left;
     width: 100%;
+  }
+
+  .mobile-app-nav > button:focus-visible,
+  .mobile-app-nav .mobile-profile-menu > summary:focus-visible,
+  .mobile-app-nav .mobile-global-actions-menu > summary:focus-visible {
+    background: var(--dark-blue-2);
+    outline: 2px solid var(--orange-light);
+    outline-offset: -3px;
   }
 
   .mobile-profile-popover button:hover,
