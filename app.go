@@ -13,6 +13,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 	"os"
 	"strings"
@@ -413,6 +414,14 @@ func (a *App) DeleteEntry(profileUUID string, id int64) error {
 	}
 	defer db.Close()
 
+	uploadFilesMu.Lock()
+	defer uploadFilesMu.Unlock()
+
+	uploads, err := listEntryUploadsFromDB(db, id)
+	if err != nil {
+		return err
+	}
+
 	res, err := db.Exec(`
 		DELETE FROM entries
 		WHERE id = ?
@@ -427,6 +436,14 @@ func (a *App) DeleteEntry(profileUUID string, id int64) error {
 	}
 	if rowsAffected == 0 {
 		return fmt.Errorf("Entry not found")
+	}
+
+	hashes := make([]string, 0, len(uploads))
+	for _, upload := range uploads {
+		hashes = append(hashes, upload.Hash)
+	}
+	for _, warning := range cleanupUnreferencedUploadFiles(profileUUID, db, hashes) {
+		log.Print(warning)
 	}
 
 	return nil
