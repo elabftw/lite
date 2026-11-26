@@ -43,6 +43,7 @@
   }
 
   async function importUpload(): Promise<void> {
+    const uploadProfileUuid = profileUuid;
     const uploadEntryId = await ensureEntrySaved();
     if (!uploadEntryId) return;
 
@@ -53,7 +54,7 @@
       const errors: string[] = [];
       for (const path of paths) {
         try {
-          await ImportUpload(profileUuid, uploadEntryId, path);
+          await ImportUpload(uploadProfileUuid, uploadEntryId, path);
         } catch (e: unknown) {
           errors.push(errorMessage(e));
         }
