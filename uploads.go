@@ -47,6 +47,9 @@ func fileSHA256(content []byte) string {
 }
 
 func (a *App) ImportUpload(profileUUID string, entryID int64, sourcePath string) (*StoredUpload, error) {
+	// On mobile the picked file is a plaintext copy in the sandbox: always remove it
+	defer discardPickedFile(sourcePath)
+
 	profileUUID, err := a.requireUnlockedProfile(profileUUID)
 	if err != nil {
 		return nil, err
@@ -60,8 +63,6 @@ func (a *App) ImportUpload(profileUUID string, entryID int64, sourcePath string)
 	if sourcePath == "" {
 		return nil, fmt.Errorf("Source path is empty")
 	}
-	// On mobile the picked file is a plaintext copy in the sandbox: always remove it
-	defer discardPickedFile(sourcePath)
 
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
@@ -219,16 +220,18 @@ func (a *App) ListEntryUploads(profileUUID string, entryID int64) ([]StoredUploa
 	return listEntryUploadsFromDB(db, entryID)
 }
 
-func (a *App) SelectFile() (string, error) {
-	path, err := application.Get().Dialog.OpenFile().
-		SetTitle("Select file").
+func (a *App) SelectFile() ([]string, error) {
+	paths, err := application.Get().Dialog.OpenFile().
+		SetTitle("Select files").
 		CanChooseFiles(true).
-		PromptForSingleSelection()
+		PromptForMultipleSelection()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	rememberPickedFile(path)
-	return path, nil
+	for _, path := range paths {
+		rememberPickedFile(path)
+	}
+	return paths, nil
 }
 
 // getUploadFromDB fetches one upload and ensures that it belongs to the expected entry

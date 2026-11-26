@@ -167,7 +167,7 @@ export function SaveEntry(profileUUID: string, title: string, body: string, cont
     return $Call.ByID(3296818692, profileUUID, title, body, contentType);
 }
 
-export function SelectFile(): $CancellablePromise<string> {
+export function SelectFile(): $CancellablePromise<string[] | null> {
     return $Call.ByID(2427571203);
 }
 

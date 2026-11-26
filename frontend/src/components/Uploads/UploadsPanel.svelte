@@ -43,15 +43,27 @@
   }
 
   async function importUpload(): Promise<void> {
+    const uploadProfileUuid = profileUuid;
     const uploadEntryId = await ensureEntrySaved();
     if (!uploadEntryId) return;
 
     try {
-      const path = await SelectFile();
-      if (!path) return;
-      const upload = await ImportUpload(profileUuid, uploadEntryId, path);
-      showAlert({type: 'success', message: `Imported ${upload.realName} ✔`});
+      const paths = (await SelectFile())?.filter(Boolean);
+      if (!paths?.length) return;
+
+      const errors: string[] = [];
+      for (const path of paths) {
+        try {
+          await ImportUpload(uploadProfileUuid, uploadEntryId, path);
+        } catch (e: unknown) {
+          errors.push(errorMessage(e));
+        }
+      }
       await refreshUploads();
+      const imported = paths.length - errors.length;
+      showAlert(errors.length
+        ? {type: 'error', message: `Imported ${imported} of ${paths.length} files: ${errors.join('; ')}`}
+        : {type: 'success', message: `Imported ${imported} ${imported === 1 ? 'file' : 'files'} ✔`});
     } catch (e: unknown) {
       showAlert({type: 'error', message: errorMessage(e)});
     }
@@ -143,7 +155,7 @@
       <!-- Always visible import button -->
       <button type='button' class='upload-card upload-card-add' onclick={importUpload}>
         <span class='upload-icon' aria-hidden='true'>+</span>
-        <span class='text-strong'>Import a file</span>
+        <span class='text-strong'>Import files</span>
       </button>
 
       {#each uploads as upload (upload.id)}
