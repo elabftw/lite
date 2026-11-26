@@ -47,6 +47,9 @@ func fileSHA256(content []byte) string {
 }
 
 func (a *App) ImportUpload(profileUUID string, entryID int64, sourcePath string) (*StoredUpload, error) {
+	// On mobile the picked file is a plaintext copy in the sandbox: always remove it
+	defer discardPickedFile(sourcePath)
+
 	profileUUID, err := a.requireUnlockedProfile(profileUUID)
 	if err != nil {
 		return nil, err
@@ -60,8 +63,6 @@ func (a *App) ImportUpload(profileUUID string, entryID int64, sourcePath string)
 	if sourcePath == "" {
 		return nil, fmt.Errorf("Source path is empty")
 	}
-	// On mobile the picked file is a plaintext copy in the sandbox: always remove it
-	defer discardPickedFile(sourcePath)
 
 	content, err := os.ReadFile(sourcePath)
 	if err != nil {
