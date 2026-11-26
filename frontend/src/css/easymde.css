@@ -33,6 +33,15 @@
   background: var(--surface-dark-soft) !important;
 }
 
+/* Make the existing fullscreen toggle explicit, including in side-by-side mode. */
+.editor-toolbar.fullscreen button.fullscreen::after {
+  content: 'Exit fullscreen (Esc)';
+  font: inherit;
+  margin-left: 0.4em;
+  position: static;
+  vertical-align: baseline;
+}
+
 .CodeMirror-fullscreen,
 .EasyMDEContainer .CodeMirror.CodeMirror-fullscreen {
   background: var(--soft-white);

@@ -187,9 +187,22 @@ func (a *App) patchExistingRemoteEntry(
 
 	var remote struct {
 		ModifiedAt string `json:"modified_at"`
+		Locked     int    `json:"locked"`
+		State      int    `json:"state"`
 	}
 	if err := decodeElabftwJSONResponse(resp, &remote); err != nil {
 		return nil, err
+	}
+
+	// Deleted, archived and locked entries cannot be overwritten, even with force.
+	// State values match the eLabFTW State enum (Archived = 2, Deleted = 3).
+	switch {
+	case remote.State == 3:
+		return nil, fmt.Errorf("remote %s #%d is deleted. Restore it in eLabFTW before pushing", entityType, remoteID)
+	case remote.State == 2:
+		return nil, fmt.Errorf("remote %s #%d is archived. Unarchive it in eLabFTW before pushing", entityType, remoteID)
+	case remote.Locked == 1:
+		return nil, fmt.Errorf("remote %s #%d is locked. Unlock it in eLabFTW before pushing", entityType, remoteID)
 	}
 
 	remoteModifiedAt, err := parseElabftwModifiedAt(remote.ModifiedAt)
