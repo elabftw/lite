@@ -80,6 +80,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
+          cache: gradle # cache dependencies to reduce network-related build failures
 
       - uses: ./.github/actions/setup
         with:
