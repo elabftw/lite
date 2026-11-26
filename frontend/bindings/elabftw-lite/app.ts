@@ -64,6 +64,13 @@ export function FetchElabftwInfo(profileUUID: string, instanceID: number): $Canc
     return $Call.ByID(1280266864, profileUUID, instanceID);
 }
 
+/**
+ * GetAppVersion returns the version embedded at build time.
+ */
+export function GetAppVersion(): $CancellablePromise<string> {
+    return $Call.ByID(1780012486);
+}
+
 export function GetEntry(profileUUID: string, id: number): $CancellablePromise<$models.Entry | null> {
     return $Call.ByID(471730233, profileUUID, id);
 }
