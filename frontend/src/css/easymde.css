@@ -20,11 +20,11 @@
 
 /* the main text area */
 .EasyMDEContainer .CodeMirror {
-  --text: var(--dark-blue);
+  --text: var(--editor-text);
 
-  background: var(--soft-white);
+  background: var(--editor-bg);
   border-radius: 0 0 12px 12px;
-  color: var(--dark-blue);
+  color: var(--editor-text);
   min-height: 420px;
 }
 
@@ -44,25 +44,28 @@
 
 .CodeMirror-fullscreen,
 .EasyMDEContainer .CodeMirror.CodeMirror-fullscreen {
-  background: var(--soft-white);
-  color: var(--dark-blue);
+  background: var(--editor-bg);
+  color: var(--editor-text);
 }
 
 .editor-preview,
 .editor-preview-side {
-  --text: var(--dark-blue);
+  --text: var(--editor-text);
 
-  color: var(--dark-blue);
+  background: var(--editor-bg);
+  color: var(--editor-text);
 }
 
 .editor-preview-side {
-  background: var(--soft-white);
   border-color: var(--border-soft);
 }
 
-/* in preview, the titles appear in white (?) */
-.editor-preview h1,
-.editor-preview h2 {
-  color: var(--dark-blue);
+/* Override application typography only inside the rendered Markdown (see #57). */
+:is(.editor-preview, .editor-preview-side) :where(h1, h2, p, span) {
+  color: inherit;
+}
+
+:is(.editor-preview, .editor-preview-side) a {
+  color: var(--editor-link);
 }
 

@@ -28,18 +28,24 @@
 
   onMount(() => {
     let destroyed = false;
+    // TinyMCE renders in an iframe, so application CSS variables are not inherited.
+    // Use the shared light content palette to preserve contrast in imported HTML (see #57).
+    const theme = getComputedStyle(document.documentElement);
+    const background = theme.getPropertyValue('--editor-bg').trim();
+    const text = theme.getPropertyValue('--editor-text').trim();
+    const link = theme.getPropertyValue('--editor-link').trim();
 
     void tinymce.init({
       target: textarea,
       menubar: false,
       plugins: 'lists link table code accordion',
-      toolbar: 'undo redo | blocks | bold italic | bullist numlist | link table accordion | code',
+      toolbar: 'undo redo | blocks | bold italic | forecolor backcolor | bullist numlist | link table accordion | code',
       height: 480,
       branding: false,
       promotion: false,
       skin: false,
       content_css: false,
-      content_style: 'html, body { background: #1b2636; color: #fff; font-family: Nunito, sans-serif; } a { color: #9ed9f4; }',
+      content_style: `html, body { background: ${background}; color: ${text}; color-scheme: light; font-family: Nunito, sans-serif; } a { color: ${link}; }`,
       setup: (instance) => {
         instance.on('init', () => {
           if (destroyed) return;
