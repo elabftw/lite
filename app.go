@@ -413,7 +413,13 @@ func (a *App) DeleteEntry(profileUUID string, id int64) error {
 	}
 	defer db.Close()
 
-	res, err := db.Exec(`
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("begin delete entry transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	res, err := tx.Exec(`
 		DELETE FROM entries
 		WHERE id = ?
 	`, id)
@@ -429,6 +435,13 @@ func (a *App) DeleteEntry(profileUUID string, id int64) error {
 		return fmt.Errorf("Entry not found")
 	}
 
+	// local2remote has no foreign key to entries. Its remote_details cascade on delete.
+	if _, err := tx.Exec(`DELETE FROM local2remote WHERE local_id = ?`, id); err != nil {
+		return fmt.Errorf("delete remote mappings: %w", err)
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit delete entry transaction: %w", err)
+	}
 	return nil
 }
 

@@ -131,7 +131,7 @@ SPDX-License-Identifier: GPL-3.0-or-later
       </div>
     {/if}
     {#if error}
-      <p class='text-orange' role='alert'>{error}</p>
+      <p class='text-orange' role='alert'>{error.charAt(0).toUpperCase() + error.slice(1)}</p>
     {/if}
   </div>
   {#snippet actions()}
