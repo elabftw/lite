@@ -261,6 +261,28 @@ PRAGMA user_version = 7;
 		if err != nil {
 			return fmt.Errorf("Create schema v7: %w", err)
 		}
+		v = 7
+	}
+
+	// Remove remote mappings left behind by deleted local entries. See issue #55
+	if v == 7 {
+		tx, err := db.Begin()
+		if err != nil {
+			return fmt.Errorf("begin schema v8: %w", err)
+		}
+		defer tx.Rollback()
+
+		_, err = tx.Exec(`
+DELETE FROM local2remote
+WHERE NOT EXISTS (SELECT 1 FROM entries WHERE entries.id = local2remote.local_id);
+PRAGMA user_version = 8;
+`)
+		if err != nil {
+			return fmt.Errorf("Create schema v8: %w", err)
+		}
+		if err := tx.Commit(); err != nil {
+			return fmt.Errorf("commit schema v8: %w", err)
+		}
 	}
 	return nil
 }
