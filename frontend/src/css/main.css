@@ -32,6 +32,11 @@
   --gray: rgb(244 247 251 / 42%);
   --light-gray: rgb(191 191 191 / 82%);
 
+  /* Keep editor content light for readable imported HTML, regardless of the app theme. See #57. */
+  --editor-bg: var(--soft-white);
+  --editor-text: var(--dark-blue);
+  --editor-link: #236fa1;
+
   /* Orange / gold */
   --orange: #fab95b;
   --orange-light: #ffd978;
